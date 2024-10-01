@@ -45,15 +45,32 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Define your API methods
+export type CrawlParams = {
+  urls: string[];
+  delay: number;
+  crawling_concurrency: number;
+  processing_concurrency: number;
+};
+
+type CrawlResponse = {
+  items: string[];
+};
+
 const api = {
-  // Example method: Get all items
-  test: async () => {
-    const response = await apiClient.get("/");
+  crawl: async ({
+    urls,
+    delay,
+    crawling_concurrency,
+    processing_concurrency,
+  }: CrawlParams) => {
+    const response = await apiClient.post<CrawlResponse>("/crawl", {
+      urls,
+      delay,
+      crawling_concurrency,
+      processing_concurrency,
+    });
     return response.data;
   },
-
-  // Add more API methods as needed
 };
 
 export default api;
