@@ -1,0 +1,4 @@
+[workspace]
+members = ["scrapy"]
+default-members = ["scrapy"]
+resolver = "2"
