@@ -1,5 +1,9 @@
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { ScrapingRule } from "./api";
+import { useCrawl } from "./hooks/useCrawl";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -13,10 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { DownloadIcon, Loader2, PlusIcon, TrashIcon, X } from "lucide-react";
-import { KeyboardEvent, useState } from "react";
-import { toast } from "sonner";
-import { ScrapingRule } from "./api";
-import { useCrawl } from "./hooks/useCrawl";
+import { KeyboardEvent } from "react";
 
 function App() {
   const [urls, setUrls] = useState("");
@@ -34,9 +35,23 @@ function App() {
   const [resultFormat, setResultFormat] = useState<"json" | "csv">("json");
   const [followLinks, setFollowLinks] = useState(false);
   const [maxDepth, setMaxDepth] = useState(1);
+  const [wsMessages, setWsMessages] = useState<string[]>([]);
+
+  useEffect(() => {
+    const eventSource = new EventSource('/api/events');
+
+    eventSource.onmessage = (event) => {
+      setWsMessages((prevMessages) => [...prevMessages, event.data]);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setWsMessages([]); // Clear previous messages
     try {
       const response = await crawl({
         urls: urls.split("\n"),
@@ -49,7 +64,7 @@ function App() {
       });
       setResults(response.items);
       toast.success("Crawling completed", {
-        description: `Successfully crawled ${response.items.length} items.`,
+        description: "The crawling process has finished successfully.",
       });
     } catch (error) {
       console.error("Error:", error);
@@ -136,7 +151,7 @@ function App() {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container p-4 mx-auto">
       <h1 className="mb-6 text-3xl font-bold">Advanced Web Scraper</h1>
       <Tabs
         value={activeTab}
@@ -209,20 +224,20 @@ function App() {
                   <label className="text-sm font-medium">
                     Fields to Scrape:
                   </label>
-                  <div className="mb-2 flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mb-2">
                     {fields.map((field) => (
                       <div
                         key={field}
-                        className="flex items-center rounded-full bg-secondary px-3 py-1 text-sm"
+                        className="flex items-center px-3 py-1 text-sm rounded-full bg-secondary"
                       >
                         {field}
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="ml-2 h-auto p-0 text-secondary-foreground"
+                          className="h-auto p-0 ml-2 text-secondary-foreground"
                           onClick={() => handleRemoveField(field)}
                         >
-                          <X className="h-3 w-3" />
+                          <X className="w-3 h-3" />
                         </Button>
                       </div>
                     ))}
@@ -264,7 +279,7 @@ function App() {
                 <Button type="submit" className="w-full" disabled={isPending}>
                   {isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       <span>Crawling...</span>
                     </>
                   ) : (
@@ -283,7 +298,7 @@ function App() {
             <CardContent>
               <div className="space-y-4">
                 {scrapingRules.map((rule, index) => (
-                  <div key={index} className="space-y-2 rounded-md border p-4">
+                  <div key={index} className="p-4 space-y-2 border rounded-md">
                     <div className="flex items-center space-x-2">
                       <Input
                         placeholder="CSS Selector"
@@ -335,7 +350,7 @@ function App() {
                         size="icon"
                         onClick={() => handleRemoveRule(index)}
                       >
-                        <TrashIcon className="h-4 w-4" />
+                        <TrashIcon className="w-4 h-4" />
                       </Button>
                     </div>
                     {rule.type === "custom" && (
@@ -360,7 +375,7 @@ function App() {
                   </div>
                 ))}
                 <Button onClick={handleAddRule}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
+                  <PlusIcon className="w-4 h-4 mr-2" />
                   Add Rule
                 </Button>
               </div>
@@ -373,7 +388,7 @@ function App() {
               <CardTitle>Results</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <Select
                   value={resultFormat}
                   onValueChange={(value) =>
@@ -389,13 +404,13 @@ function App() {
                   </SelectContent>
                 </Select>
                 <Button onClick={handleDownloadResults}>
-                  <DownloadIcon className="mr-2 h-4 w-4" />
+                  <DownloadIcon className="w-4 h-4 mr-2" />
                   Download Results
                 </Button>
               </div>
               <ul className="max-h-[400px] space-y-2 overflow-y-auto">
                 {results.map((item, index) => (
-                  <li key={index} className="rounded-md bg-secondary p-2">
+                  <li key={index} className="p-2 rounded-md bg-secondary">
                     <pre>{JSON.stringify(item, null, 2)}</pre>
                   </li>
                 ))}
@@ -404,6 +419,21 @@ function App() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>Crawling Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            {wsMessages.map((message, index) => (
+              <li key={index} className="text-sm">
+                {message}
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }
