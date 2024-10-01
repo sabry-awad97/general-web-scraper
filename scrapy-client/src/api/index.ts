@@ -45,11 +45,24 @@ apiClient.interceptors.response.use(
   },
 );
 
+// Define the ScrapingRule type
+export type ScrapingRule = {
+  selector: string;
+  attribute: string;
+  name: string;
+  type: "text" | "attribute" | "html" | "custom";
+  customFunction?: string;
+};
+
+
 export type CrawlParams = {
   urls: string[];
   delay: number;
   crawling_concurrency: number;
   processing_concurrency: number;
+  scraping_rules: ScrapingRule[];
+  follow_links: boolean;
+  max_depth: number;
 };
 
 type CrawlResponse = {
