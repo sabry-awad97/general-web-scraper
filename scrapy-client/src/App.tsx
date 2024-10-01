@@ -1,9 +1,21 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useCrawl } from "./hooks/useCrawl";
@@ -14,6 +26,8 @@ function App() {
   const [crawlingConcurrency, setCrawlingConcurrency] = useState(2);
   const [processingConcurrency, setProcessingConcurrency] = useState(2);
   const [results, setResults] = useState<string[]>([]);
+  const [fields, setFields] = useState<string[]>([]);
+  const [openFieldSelector, setOpenFieldSelector] = useState(false);
   const { mutateAsync: crawl, isPending } = useCrawl();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -35,6 +49,17 @@ function App() {
         description: "An error occurred while crawling. Please try again.",
       });
     }
+  };
+
+  const handleAddField = (field: string) => {
+    if (!fields.includes(field)) {
+      setFields([...fields, field]);
+    }
+    setOpenFieldSelector(false);
+  };
+
+  const handleRemoveField = (field: string) => {
+    setFields(fields.filter((f) => f !== field));
   };
 
   return (
@@ -96,6 +121,59 @@ function App() {
                     }
                     min={1}
                   />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Fields to Scrape:</label>
+                <div className="flex flex-wrap gap-2">
+                  {fields.map((field) => (
+                    <div
+                      key={field}
+                      className="flex items-center rounded-full bg-secondary px-3 py-1 text-sm"
+                    >
+                      {field}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-2 h-auto p-0 text-secondary-foreground"
+                        onClick={() => handleRemoveField(field)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Popover
+                    open={openFieldSelector}
+                    onOpenChange={setOpenFieldSelector}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8">
+                        Add Field
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0" side="right" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search fields..." />
+                        <CommandEmpty>No field found.</CommandEmpty>
+                        <CommandGroup>
+                          {[
+                            "title",
+                            "description",
+                            "price",
+                            "image",
+                            "url",
+                          ].map((field) => (
+                            <CommandItem
+                              key={field}
+                              onSelect={() => handleAddField(field)}
+                            >
+                              {field}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={isPending}>
