@@ -7,7 +7,7 @@ pub struct Downloader {
 
 impl Downloader {
     pub fn new() -> Self {
-        Downloader {
+        Self {
             client: Client::new(),
         }
     }
