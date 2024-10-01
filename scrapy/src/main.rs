@@ -1,4 +1,5 @@
 mod ai;
+mod crawler;
 mod downloader;
 mod spider;
 
@@ -9,14 +10,30 @@ use rocket::State;
 use rocket::{fs::FileServer, get, post, routes, serde::json::Json};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use serde::{Deserialize, Serialize};
-use spider::Spider;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-mod crawler;
+trait CrawlerService {
+    fn crawl(&self, params: CrawlRequest) -> Result<CrawlResponse, String>;
+}
 
 struct WebSocketState {
     sender: Mutex<Sender<String>>,
+}
+
+impl WebSocketState {
+    fn new(capacity: usize) -> Self {
+        let (sender, _) = channel::<String>(capacity);
+        WebSocketState {
+            sender: Mutex::new(sender),
+        }
+    }
+
+    async fn send_message(&self, message: String) -> Result<(), String> {
+        let sender = self.sender.lock().await;
+        let _ = sender.send(message).map_err(|e| e.to_string())?;
+        Ok(())
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -32,61 +49,67 @@ struct CrawlResponse {
     items: Vec<String>,
 }
 
-#[get("/")]
-fn index() -> &'static str {
-    "Welcome to the web scraping API!"
-}
+mod routes {
+    use super::*;
 
-#[get("/events")]
-async fn events(state: &State<Arc<WebSocketState>>) -> EventStream![] {
-    let receiver = state.sender.lock().await.subscribe();
-    EventStream! {
-        let mut receiver = receiver;
-        loop {
-            if let Ok(message) = receiver.recv().await {
-                yield Event::data(message);
+    #[get("/")]
+    pub fn index() -> &'static str {
+        "Welcome to the web scraping API!"
+    }
+
+    #[get("/events")]
+    pub async fn events(state: &State<Arc<WebSocketState>>) -> EventStream![] {
+        let receiver = state.sender.lock().await.subscribe();
+        EventStream! {
+            let mut receiver = receiver;
+            loop {
+                if let Ok(message) = receiver.recv().await {
+                    yield Event::data(message);
+                }
+            }
+        }
+    }
+
+    #[post("/crawl", data = "<params>")]
+    pub async fn crawl(
+        params: Json<CrawlRequest>,
+        state: &State<Arc<WebSocketState>>,
+        crawler_service: &State<Arc<dyn CrawlerService + Send + Sync>>,
+    ) -> Json<CrawlResponse> {
+        let _ = state
+            .send_message(format!("Crawling started for {} URLs", params.urls.len()))
+            .await;
+
+        // Use the CrawlerService to perform the crawl
+        let result = crawler_service.crawl(params.into_inner());
+
+        match result {
+            Ok(response) => {
+                let _ = state.send_message("Crawling completed".to_string()).await;
+                Json(response)
+            }
+            Err(e) => {
+                let _ = state.send_message(format!("Crawling failed: {}", e)).await;
+                Json(CrawlResponse { items: vec![] })
             }
         }
     }
 }
 
-#[post("/crawl", data = "<params>")]
-async fn crawl(
-    params: Json<CrawlRequest>,
-    state: &State<Arc<WebSocketState>>,
-) -> Json<CrawlResponse> {
-    let urls = params.urls.clone();
-    let delay = params.delay;
-    let crawling_concurrency = params.crawling_concurrency;
-    let processing_concurrency = params.processing_concurrency;
+struct SimpleCrawlerService;
 
-    println!("urls: {:?}", urls);
-    println!("delay: {:?}", delay);
-    println!("crawling_concurrency: {:?}", crawling_concurrency);
-    println!("processing_concurrency: {:?}", processing_concurrency);
-
-    let sender = state.sender.lock().await;
-    let _ = sender.send(format!("Crawling started for {} URLs", urls.len()));
-
-    // Simulate crawling process
-    for (index, url) in urls.iter().enumerate() {
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        let _ = sender.send(format!("Crawled URL {}/{}: {}", index + 1, urls.len(), url));
+impl CrawlerService for SimpleCrawlerService {
+    fn crawl(&self, params: CrawlRequest) -> Result<CrawlResponse, String> {
+        Ok(CrawlResponse {
+            items: vec![String::from("Crawled item")],
+        })
     }
-
-    let _ = sender.send("Crawling completed".to_string());
-
-    Json(CrawlResponse {
-        items: vec![String::from("Success")],
-    })
 }
 
 #[rocket::launch]
 fn rocket() -> _ {
-    let (sender, _) = channel::<String>(1024);
-    let websocket_state = WebSocketState {
-        sender: Mutex::new(sender),
-    };
+    let websocket_state = Arc::new(WebSocketState::new(1024));
+    let crawler_service: Arc<dyn CrawlerService + Send + Sync> = Arc::new(SimpleCrawlerService);
 
     let cors = rocket_cors::CorsOptions {
         allowed_origins: AllowedOrigins::all(),
@@ -99,13 +122,17 @@ fn rocket() -> _ {
         ..Default::default()
     }
     .to_cors()
-    .expect("Failed to attach cors");
+    .expect("Failed to create CORS");
 
     let static_dir = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static"));
 
     rocket::build()
-        .mount("/api", routes![index, crawl, events])
+        .mount(
+            "/api",
+            routes![routes::index, routes::crawl, routes::events],
+        )
         .mount("/", FileServer::from(static_dir))
-        .manage(Arc::new(websocket_state))
+        .manage(websocket_state)
+        .manage(crawler_service)
         .attach(cors)
 }

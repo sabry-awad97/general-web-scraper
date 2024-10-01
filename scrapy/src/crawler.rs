@@ -15,7 +15,7 @@ use tokio::{
 };
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::Spider;
+use crate::spider::Spider;
 
 pub struct Crawler {
     delay: Duration,
