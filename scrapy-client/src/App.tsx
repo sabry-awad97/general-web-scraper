@@ -3,11 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import api from "./api";
+import { useCrawl } from "./hooks/useCrawl";
 
 function App() {
   const [urls, setUrls] = useState("");
@@ -15,22 +14,17 @@ function App() {
   const [crawlingConcurrency, setCrawlingConcurrency] = useState(2);
   const [processingConcurrency, setProcessingConcurrency] = useState(2);
   const [results, setResults] = useState<string[]>([]);
-  const { mutateAsync: crawl, isPending } = useMutation({
-    mutationKey: ["crawl"],
-    mutationFn: () => {
-      return api.crawl({
+  const { mutateAsync: crawl, isPending } = useCrawl();
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    try {
+      const response = await crawl({
         urls: urls.split("\n"),
         delay,
         crawling_concurrency: crawlingConcurrency,
         processing_concurrency: processingConcurrency,
       });
-    },
-  });
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    try {
-      const response = await crawl();
       setResults(response.items);
       toast("Crawling completed", {
         description: `Successfully crawled ${response.items.length} items.`,
