@@ -19,7 +19,7 @@ apiClient.interceptors.request.use(
   },
   (error: AxiosError) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor
@@ -42,7 +42,7 @@ apiClient.interceptors.response.use(
       console.error("Error:", error.message);
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export type CrawlParams = {
