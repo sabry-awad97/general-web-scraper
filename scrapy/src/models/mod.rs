@@ -49,10 +49,21 @@ pub enum EventType {
     Json,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct WebSocketMessage<T> {
+pub enum WebSocketMessage<T> {
     #[serde(rename = "type")]
-    r#type: EventType,
-    payload: T,
+    Text { payload: String },
+    #[serde(rename = "type")]
+    Json { payload: T },
+}
+
+impl<T> WebSocketMessage<T> {
+    pub fn new_text(payload: String) -> Self {
+        WebSocketMessage::Text { payload }
+    }
+
+    pub fn new_json(payload: T) -> Self {
+        WebSocketMessage::Json { payload }
+    }
 }

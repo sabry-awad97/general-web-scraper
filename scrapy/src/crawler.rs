@@ -9,6 +9,7 @@ use std::{
 };
 
 use futures_util::StreamExt;
+use serde::Serialize;
 use tokio::{
     sync::{mpsc, Barrier},
     time::sleep,
@@ -44,7 +45,7 @@ impl Crawler {
 
     pub async fn crawl<T, E>(&self, spider: Arc<dyn Spider<Item = T, Error = E>>)
     where
-        T: Send + 'static,
+        T: Serialize + Send + 'static,
         E: Display + Send + 'static,
     {
         let mut visited_urls = HashSet::<String>::new();
@@ -102,7 +103,7 @@ impl Crawler {
         spider: Arc<dyn Spider<Item = T, Error = E>>,
         items: mpsc::Receiver<T>,
     ) where
-        T: Send + 'static,
+        T: Serialize + Send + 'static,
         E: Send + 'static,
     {
         let concurrency = self.processing_concurrency;
@@ -125,7 +126,7 @@ impl Crawler {
         new_urls_tx: mpsc::Sender<(String, Vec<String>)>,
         items_tx: mpsc::Sender<T>,
     ) where
-        T: Send + 'static,
+        T: Serialize + Send + 'static,
         E: Display + Send + 'static,
     {
         let concurrency = self.crawling_concurrency;

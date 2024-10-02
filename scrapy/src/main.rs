@@ -1,4 +1,4 @@
-use crawler::Crawler;
+use crate::crawler::Crawler;
 use rocket::{fs::FileServer, routes};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use services::{CrawlerService, RealCrawlerService, RealWebSocketService, WebSocketService};

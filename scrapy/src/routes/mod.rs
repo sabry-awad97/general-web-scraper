@@ -1,11 +1,11 @@
-use futures_util::StreamExt;
+use futures_util::{SinkExt, StreamExt};
 use rocket::response::stream::{Event, EventStream};
 use rocket::serde::json::Json;
 use rocket::{get, post, State};
 use std::sync::Arc;
 use ws::Message;
 
-use crate::models::{CrawlResponse, ScrapeParams};
+use crate::models::{CrawlResponse, ScrapeParams, WebSocketMessage};
 use crate::services::{CrawlerService, WebSocketService};
 
 #[get("/")]
@@ -25,6 +25,7 @@ pub fn websocket(ws: ws::WebSocket) -> ws::Channel<'static> {
                     match message {
                         Message::Text(text) => {
                             log::info!("Received text message: {}", text);
+                            stream.send(Message::Text(text)).await?;
                         }
                         Message::Binary(binary) => {
                             log::info!("Received binary message with length: {}", binary.len());
@@ -36,12 +37,15 @@ pub fn websocket(ws: ws::WebSocket) -> ws::Channel<'static> {
                             log::info!("Received pong message with length: {}", pong.len());
                         }
                         Message::Close(_) => {
+                            log::info!("WebSocket connection closed");
                             break;
                         }
                         Message::Frame(_) => {
                             log::warn!(
                                 "Received frame message, which is not supported by this server"
                             );
+                            stream.send(Message::Close(None)).await?;
+                            break;
                         }
                     }
                 }
@@ -61,7 +65,12 @@ pub async fn events(
         let mut receiver = receiver;
         loop {
             match receiver.recv().await {
-                Ok(message) => yield Event::data(message),
+                Ok(message) => {
+                    match message {
+                        WebSocketMessage::Text { payload } => yield Event::data(payload),
+                        WebSocketMessage::Json { payload } => yield Event::json(&payload),
+                    }
+                },
                 Err(e) => {
                     log::error!("WebSocket channel closed: {}", e);
                     return;
@@ -78,7 +87,7 @@ pub async fn crawl(
     crawler_service: &State<Arc<dyn CrawlerService + Send + Sync>>,
 ) -> Json<CrawlResponse> {
     match websocket_service
-        .send_message(format!("Crawling started for {}", params.url))
+        .send_message(WebSocketMessage::new_text(format!("Crawling started for {}", params.url)))
         .await
     {
         Ok(_) => log::info!("Start message sent successfully"),
@@ -90,7 +99,7 @@ pub async fn crawl(
     match result {
         Ok(response) => {
             if let Err(e) = websocket_service
-                .send_message("Crawling completed".to_string())
+                .send_message(WebSocketMessage::new_text("Crawling completed".to_string()))
                 .await
             {
                 log::error!("Failed to send completion message: {}", e);
@@ -99,7 +108,7 @@ pub async fn crawl(
         }
         Err(e) => {
             if let Err(send_err) = websocket_service
-                .send_message(format!("Crawling failed: {}", e))
+                .send_message(WebSocketMessage::new_text(format!("Crawling failed: {}", e)))
                 .await
             {
                 log::error!("Failed to send error message: {}", send_err);
