@@ -38,6 +38,12 @@ function App() {
 
     sendMessage("start");
 
+    const buffer = new ArrayBuffer(4);
+    const view = new DataView(buffer);
+    view.setInt32(0, 123456, true);
+
+    sendMessage(view);
+
     const result = await crawl(values);
 
     console.log("result", result);

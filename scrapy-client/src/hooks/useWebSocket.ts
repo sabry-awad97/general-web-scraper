@@ -1,30 +1,44 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import useReactWebSocket, { ReadyState } from "react-use-websocket";
 
 export function useWebSocket(url: string) {
   const [messages, setMessages] = useState<string[]>([]);
-  const [socket, setSocket] = useState<WebSocket | null>(null);
 
-  useEffect(() => {
-    const ws = new WebSocket(url);
-
-    ws.onmessage = (event) => {
+  const { sendMessage, lastMessage, readyState } = useReactWebSocket(url, {
+    onMessage: (event) => {
+      console.log("WebSocket message received:", event.data);
       setMessages((prevMessages) => [...prevMessages, event.data]);
-    };
+    },
+    onOpen: () => {
+      console.log("WebSocket connection opened");
+    },
+    onClose: () => {
+      console.log("WebSocket connection closed");
+    },
+    onError: (error) => {
+      console.error("WebSocket error:", error);
+    },
+  });
 
-    setSocket(ws);
+  const connectionStatus = {
+    [ReadyState.CONNECTING]: "Connecting",
+    [ReadyState.OPEN]: "Open",
+    [ReadyState.CLOSING]: "Closing",
+    [ReadyState.CLOSED]: "Closed",
+    [ReadyState.UNINSTANTIATED]: "Uninstantiated",
+  }[readyState];
 
-    return () => {
-      ws.close();
-    };
-  }, [url]);
+  const sendMessageCallback = useCallback(
+    (message: string | ArrayBufferLike | Blob | ArrayBufferView) => {
+      sendMessage(message);
+    },
+    [sendMessage],
+  );
 
-  const sendMessage = (
-    message: string | ArrayBufferLike | Blob | ArrayBufferView,
-  ) => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(message);
-    }
+  return {
+    messages,
+    sendMessage: sendMessageCallback,
+    connectionStatus,
+    lastMessage,
   };
-
-  return { messages, sendMessage };
 }
