@@ -41,3 +41,18 @@ pub struct TokenCounts {
     pub input_tokens: u32,
     pub output_tokens: u32,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone, Eq, Hash, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum EventType {
+    Text,
+    Json,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebSocketMessage<T> {
+    #[serde(rename = "type")]
+    r#type: EventType,
+    payload: T,
+}

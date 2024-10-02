@@ -13,11 +13,13 @@ import { useEffect, useState } from "react";
 import Sidebar from "./components/sidebar";
 import { useCrawl } from "./hooks/useCrawl";
 import { useEventSource } from "./hooks/useEventSource";
+import { useWebSocket } from "./hooks/useWebSocket";
 import { PRICING } from "./lib/constants";
 import { ScrapeSchema, ScrapingResult } from "./types";
 
 function App() {
   const events = useEventSource("/api/events");
+  const { messages, sendMessage } = useWebSocket("ws://localhost:8000/api/ws");
 
   const [results, setResults] = useState<ScrapingResult | null>(null);
   const [performScrape, setPerformScrape] = useState(false);
@@ -27,8 +29,14 @@ function App() {
     console.log("events", events);
   }, [events]);
 
+  useEffect(() => {
+    console.log("WebSocket messages:", messages);
+  }, [messages]);
+
   const onSubmit = async (values: ScrapeSchema) => {
     setPerformScrape(true);
+
+    sendMessage("start");
 
     const result = await crawl(values);
 
@@ -81,7 +89,7 @@ function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 p-4 overflow-auto">
+      <div className="flex-1 overflow-auto p-4">
         <h1 className="mb-4 text-3xl font-bold">Universal Web Scraper 🦑</h1>
 
         {performScrape && results ? (
@@ -109,7 +117,7 @@ function App() {
             </ScrollArea>
 
             <h2 className="mt-4 text-2xl font-semibold">Download Options</h2>
-            <div className="flex gap-2 mt-2">
+            <div className="mt-2 flex gap-2">
               <Button onClick={() => alert("Downloading JSON...")}>
                 Download JSON
               </Button>
@@ -139,7 +147,7 @@ function App() {
                     </TableBody>
                   </Table>
                 </ScrollArea>
-                <div className="flex gap-2 mt-2">
+                <div className="mt-2 flex gap-2">
                   <Button
                     onClick={() => alert("Downloading Pagination JSON...")}
                   >

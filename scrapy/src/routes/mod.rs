@@ -1,7 +1,9 @@
+use futures_util::StreamExt;
 use rocket::response::stream::{Event, EventStream};
 use rocket::serde::json::Json;
 use rocket::{get, post, State};
 use std::sync::Arc;
+use ws::Message;
 
 use crate::models::{CrawlResponse, ScrapeParams};
 use crate::services::{CrawlerService, WebSocketService};
@@ -9,6 +11,45 @@ use crate::services::{CrawlerService, WebSocketService};
 #[get("/")]
 pub fn index() -> &'static str {
     "Welcome to the web scraping API!"
+}
+
+#[get("/ws")]
+pub fn websocket(ws: ws::WebSocket) -> ws::Channel<'static> {
+    ws.channel(move |mut stream| {
+        Box::pin(async move {
+            log::info!("WebSocket connection established");
+
+            loop {
+                if let Some(message) = stream.next().await {
+                    let message = message?;
+                    match message {
+                        Message::Text(text) => {
+                            log::info!("Received text message: {}", text);
+                        }
+                        Message::Binary(binary) => {
+                            log::info!("Received binary message with length: {}", binary.len());
+                        }
+                        Message::Ping(ping) => {
+                            log::info!("Received ping message with length: {}", ping.len());
+                        }
+                        Message::Pong(pong) => {
+                            log::info!("Received pong message with length: {}", pong.len());
+                        }
+                        Message::Close(_) => {
+                            break;
+                        }
+                        Message::Frame(_) => {
+                            log::warn!(
+                                "Received frame message, which is not supported by this server"
+                            );
+                        }
+                    }
+                }
+            }
+
+            Ok(())
+        })
+    })
 }
 
 #[get("/events")]
