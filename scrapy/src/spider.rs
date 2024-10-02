@@ -3,6 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use reqwest::Client;
 use scraper::{Html, Selector};
+use tokio::sync::mpsc;
 
 use crate::error::AppError;
 
@@ -28,10 +29,15 @@ pub struct GenericSpider {
     http_client: Client,
     selectors: Vec<Selector>,
     urls: Vec<String>,
+    websocket_tx: Option<mpsc::Sender<String>>,
 }
 
 impl GenericSpider {
-    pub fn new(selectors: Vec<&str>, urls: Vec<String>) -> Self {
+    pub fn new(
+        selectors: Vec<&str>,
+        urls: Vec<String>,
+        websocket_tx: Option<mpsc::Sender<String>>,
+    ) -> Self {
         let http_timeout = Duration::from_secs(6);
         let http_client = Client::builder()
             .timeout(http_timeout)
@@ -47,6 +53,7 @@ impl GenericSpider {
             http_client,
             selectors,
             urls,
+            websocket_tx,
         }
     }
 }
@@ -70,7 +77,6 @@ impl Spider for GenericSpider {
         let document = Html::parse_document(&html);
 
         let mut items = Vec::new();
-        let mut new_urls = Vec::new();
 
         for selector in &self.selectors {
             for element in document.select(selector) {
@@ -82,25 +88,16 @@ impl Spider for GenericSpider {
                     title,
                     content,
                 });
-
-                // Extract links from the element
-                if let Some(href) = element.value().attr("href") {
-                    new_urls.push(href.to_string());
-                }
             }
         }
-
-        println!(
-            "Found {} items and {} new URLs",
-            items.len(),
-            new_urls.len()
-        );
 
         Ok((items, vec![]))
     }
 
     async fn process(&self, item: Self::Item) -> Result<(), Self::Error> {
-        println!("Processing item: {:?}", item);
+        if let Some(tx) = &self.websocket_tx {
+            let _ = tx.send(format!("Processing item: {:?}", item)).await;
+        }
         Ok(())
     }
 }

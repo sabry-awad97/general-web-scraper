@@ -6,6 +6,7 @@ use rocket::tokio::sync::broadcast::{channel, Receiver, Sender};
 use rocket::tokio::sync::Mutex;
 use std::sync::Arc;
 use thiserror::Error;
+use tokio::sync::mpsc;
 
 #[derive(Error, Debug)]
 pub enum WebSocketError {
@@ -54,19 +55,42 @@ impl WebSocketService for RealWebSocketService {
 
 pub struct RealCrawlerService {
     pub crawler: Crawler,
+    pub websocket_service: Arc<dyn WebSocketService + Send + Sync>,
 }
 
 impl RealCrawlerService {
-    pub fn new(crawler: Crawler) -> Self {
-        Self { crawler }
+    pub fn new(
+        crawler: Crawler,
+        websocket_service: Arc<dyn WebSocketService + Send + Sync>,
+    ) -> Self {
+        Self {
+            crawler,
+            websocket_service,
+        }
     }
 }
 
 #[async_trait]
 impl CrawlerService for RealCrawlerService {
     async fn crawl(&self, params: ScrapeParams) -> Result<CrawlResponse, String> {
-        let selectors = vec!["a", "p", "h1", "h2", "h3"];
-        let spider = Arc::new(GenericSpider::new(selectors, vec![params.url]));
+        let selectors = vec!["body"];
+        let (tx, mut _rx) = mpsc::channel(100);
+        let websocket_tx = Some(tx.clone());
+        let spider = Arc::new(GenericSpider::new(
+            selectors,
+            vec![params.url],
+            websocket_tx,
+        ));
+
+        let websocket_service = self.websocket_service.clone();
+        tokio::spawn(async move {
+            while let Some(message) = _rx.recv().await {
+                if let Err(e) = websocket_service.send_message(message).await {
+                    eprintln!("Failed to send message: {:?}", e);
+                }
+            }
+        });
+
         self.crawler.crawl(spider).await;
         Ok(CrawlResponse {
             items: vec![String::from("Crawled item")],
