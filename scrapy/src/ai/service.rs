@@ -1,6 +1,8 @@
+use std::io::{stdout, Write};
+
 use google_generative_ai_rs::v1::{
     api::Client,
-    gemini::{request::Request, Content, Model, Part, Role},
+    gemini::{request::Request, response::GeminiResponse, Content, Part, ResponseType, Role},
 };
 use log::{debug, error, info};
 
@@ -20,7 +22,12 @@ impl AIService {
             AppError::MissingAPIKey("GEMINI_API_KEY".to_string())
         })?;
 
-        let client = Client::new_from_model(Model::GeminiPro, api_key);
+        let client = Client::new_from_model_response_type(
+            google_generative_ai_rs::v1::gemini::Model::GeminiPro,
+            api_key,
+            ResponseType::StreamGenerateContent,
+        );
+
         info!("AIService initialized successfully");
         Ok(Self { client })
     }
@@ -39,12 +46,12 @@ impl AIService {
             AppError::AIError(e.to_string())
         })?;
 
-        let message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+        let message = std::sync::Arc::new(std::sync::Mutex::new(String::from("\n")));
 
         if let Some(stream_response) = response.streamed() {
             if let Some(json_stream) = stream_response.response_stream {
                 let message_clone = message.clone();
-                Client::for_each_async(json_stream, move |response| {
+                Client::for_each_async(json_stream, move |response: GeminiResponse| {
                     let message_clone = message_clone.clone();
                     async move {
                         if let Some(part) = response.candidates.first() {
@@ -52,6 +59,8 @@ impl AIService {
                                 if let Some(text) = text.text.as_ref() {
                                     let mut message = message_clone.lock().unwrap();
                                     message.push_str(text);
+                                    print!("{}", text);
+                                    stdout().flush().unwrap();
                                 }
                             }
                         }
@@ -75,13 +84,19 @@ impl AIService {
     fn build_prompt(&self, html: &str, params: &ScrapeParams) -> String {
         let tags = params.tags.join(", ");
         format!(
-            r#"Extract the following information from the given HTML: {}. 
-            Return the result as a JSON array of objects, where each object represents an item with the specified fields. 
-            Only include the JSON array in your response, nothing else.
+            r#"You are an intelligent text extraction and conversion assistant. Your task is to extract structured information 
+    from the given HTML and convert it into a pure JSON format. The JSON should contain only the structured data extracted from the HTML, 
+    with no additional commentary, explanations, or extraneous information. 
+    You may encounter cases where you can't find the data for the fields you need to extract, or the data may be in a foreign language.
+    Process the following HTML and provide the output in pure JSON format with no words before or after the JSON.
 
-            HTML:
-            {}
-            "#,
+    Extract the following information: {}.
+    Return the result as a JSON array of objects, where each object represents an item with the specified fields.
+    Only include the JSON array in your response, nothing else.
+
+    HTML:
+    {}
+    "#,
             tags, html
         )
     }

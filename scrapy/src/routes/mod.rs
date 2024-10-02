@@ -10,6 +10,7 @@ use crate::services::{CrawlerService, WebSocketService};
 
 #[get("/")]
 pub fn index() -> &'static str {
+    log::info!("Received request for index route");
     "Welcome to the web scraping API!"
 }
 
@@ -24,33 +25,37 @@ pub fn websocket(ws: ws::WebSocket) -> ws::Channel<'static> {
                     let message = message?;
                     match message {
                         Message::Text(text) => {
-                            log::info!("Received text message: {}", text);
-                            stream.send(Message::Text(text)).await?;
+                            log::info!("Received WebSocket text message: {}", text);
+                            if let Err(e) = stream.send(Message::Text(text)).await {
+                                log::error!("Failed to echo text message: {}", e);
+                                break;
+                            }
                         }
                         Message::Binary(binary) => {
-                            log::info!("Received binary message with length: {}", binary.len());
+                            log::info!("Received WebSocket binary message with length: {}", binary.len());
                         }
                         Message::Ping(ping) => {
-                            log::info!("Received ping message with length: {}", ping.len());
+                            log::debug!("Received WebSocket ping message with length: {}", ping.len());
                         }
                         Message::Pong(pong) => {
-                            log::info!("Received pong message with length: {}", pong.len());
+                            log::debug!("Received WebSocket pong message with length: {}", pong.len());
                         }
                         Message::Close(_) => {
-                            log::info!("WebSocket connection closed");
+                            log::info!("WebSocket connection closed by client");
                             break;
                         }
                         Message::Frame(_) => {
-                            log::warn!(
-                                "Received frame message, which is not supported by this server"
-                            );
-                            stream.send(Message::Close(None)).await?;
+                            log::warn!("Received unsupported WebSocket frame message");
+                            if let Err(e) = stream.send(Message::Close(None)).await {
+                                log::error!("Failed to send close message: {}", e);
+                            }
                             break;
                         }
                     }
                 }
             }
 
+            log::info!("WebSocket connection handler completed");
             Ok(())
         })
     })
@@ -60,14 +65,18 @@ pub fn websocket(ws: ws::WebSocket) -> ws::Channel<'static> {
 pub async fn events(
     websocket_service: &State<Arc<dyn WebSocketService + Send + Sync>>,
 ) -> EventStream![] {
+    log::info!("Client connected to SSE events stream");
     let receiver = websocket_service.subscribe().await;
     EventStream! {
         let mut receiver = receiver;
         loop {
             match receiver.recv().await {
-                Ok(message) => yield Event::json(&message),
+                Ok(message) => {
+                    log::debug!("Sending SSE event: {:?}", message);
+                    yield Event::json(&message)
+                },
                 Err(e) => {
-                    log::error!("WebSocket channel closed: {}", e);
+                    log::error!("SSE channel closed, ending event stream: {}", e);
                     return;
                 }
             }
@@ -81,38 +90,40 @@ pub async fn crawl(
     websocket_service: &State<Arc<dyn WebSocketService + Send + Sync>>,
     crawler_service: &State<Arc<dyn CrawlerService + Send + Sync>>,
 ) -> Json<CrawlResponse> {
-    match websocket_service
-        .send_message(WebSocketMessage::new_text(format!(
-            "Crawling started for {}",
-            params.url
-        )))
-        .await
-    {
-        Ok(_) => log::info!("Start message sent successfully"),
-        Err(e) => log::error!("Failed to send start message: {}", e),
+    log::info!("Received crawl request for URL: {} with parameters: {:#?}", params.url, params);
+
+    let start_message = format!("Crawling started for {}", params.url);
+    match websocket_service.send_message(WebSocketMessage::new_text(start_message.clone())).await {
+        Ok(_) => log::info!("Successfully sent crawl start message: {}", start_message),
+        Err(e) => log::error!("Failed to send crawl start message: {}. Error: {}", start_message, e),
     }
 
     let result = crawler_service.crawl(params.into_inner()).await;
 
     match result {
         Ok(response) => {
+            log::info!("Crawling completed successfully. Items found: {}", response.items.len());
+            let completion_message = "Crawling completed successfully";
             if let Err(e) = websocket_service
-                .send_message(WebSocketMessage::new_text("Crawling completed".to_string()))
+                .send_message(WebSocketMessage::new_text(completion_message.to_string()))
                 .await
             {
-                log::error!("Failed to send completion message: {}", e);
+                log::error!("Failed to send crawl completion message: {}. Error: {}", completion_message, e);
+            } else {
+                log::info!("Successfully sent crawl completion message: {}", completion_message);
             }
             Json(response)
         }
         Err(e) => {
+            log::error!("Crawling failed: {}", e);
+            let error_message = format!("Crawling failed: {}", e);
             if let Err(send_err) = websocket_service
-                .send_message(WebSocketMessage::new_text(format!(
-                    "Crawling failed: {}",
-                    e
-                )))
+                .send_message(WebSocketMessage::new_text(error_message.clone()))
                 .await
             {
-                log::error!("Failed to send error message: {}", send_err);
+                log::error!("Failed to send crawl error message: {}. Error: {}", error_message, send_err);
+            } else {
+                log::info!("Successfully sent crawl error message: {}", error_message);
             }
             Json(CrawlResponse { items: vec![] })
         }
