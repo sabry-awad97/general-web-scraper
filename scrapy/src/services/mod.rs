@@ -1,3 +1,4 @@
+use crate::error::AppError;
 use crate::models::{CrawlResponse, ScrapeParams, WebSocketMessage};
 use crate::spider::GenericSpider;
 use crate::Crawler;
@@ -22,7 +23,7 @@ pub trait WebSocketService: Send + Sync {
 
 #[async_trait]
 pub trait CrawlerService: Send + Sync {
-    async fn crawl(&self, params: ScrapeParams) -> Result<CrawlResponse, String>;
+    async fn crawl(&self, params: ScrapeParams) -> Result<CrawlResponse, AppError>;
 }
 
 pub struct RealWebSocketService {
@@ -72,15 +73,16 @@ impl RealCrawlerService {
 
 #[async_trait]
 impl CrawlerService for RealCrawlerService {
-    async fn crawl(&self, params: ScrapeParams) -> Result<CrawlResponse, String> {
+    async fn crawl(&self, params: ScrapeParams) -> Result<CrawlResponse, AppError> {
         let selectors = vec!["body"];
         let (tx, mut _rx) = mpsc::channel(100);
         let websocket_tx = Some(tx.clone());
         let spider = Arc::new(GenericSpider::new(
             selectors,
-            vec![params.url],
+            vec![params.url.clone()],
             websocket_tx,
-        ));
+            params.clone(),
+        )?);
 
         let websocket_service = self.websocket_service.clone();
         tokio::spawn(async move {
@@ -91,7 +93,7 @@ impl CrawlerService for RealCrawlerService {
             }
         });
 
-        self.crawler.crawl(spider).await;
+        self.crawler.crawl(spider, params).await;
         Ok(CrawlResponse {
             items: vec![String::from("Crawled item")],
         })

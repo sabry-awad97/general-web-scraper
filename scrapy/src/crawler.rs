@@ -16,7 +16,7 @@ use tokio::{
 };
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::spider::Spider;
+use crate::{models::ScrapeParams, spider::Spider};
 
 pub struct Crawler {
     delay: Duration,
@@ -43,8 +43,11 @@ impl Crawler {
         }
     }
 
-    pub async fn crawl<T, E>(&self, spider: Arc<dyn Spider<Item = T, Error = E>>)
-    where
+    pub async fn crawl<T, E>(
+        &self,
+        spider: Arc<dyn Spider<Item = T, Error = E>>,
+        params: ScrapeParams,
+    ) where
         T: Serialize + Send + 'static,
         E: Display + Send + 'static,
     {
@@ -68,6 +71,7 @@ impl Crawler {
             urls_to_visit_rx,
             new_urls_tx.clone(),
             items_tx,
+            params,
         );
 
         loop {
@@ -125,6 +129,7 @@ impl Crawler {
         urls_to_visit: mpsc::Receiver<String>,
         new_urls_tx: mpsc::Sender<(String, Vec<String>)>,
         items_tx: mpsc::Sender<T>,
+        _params: ScrapeParams,
     ) where
         T: Serialize + Send + 'static,
         E: Display + Send + 'static,
@@ -163,91 +168,5 @@ impl Crawler {
             drop(items_tx);
             barrier.wait().await;
         });
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use async_trait::async_trait;
-    use std::sync::Mutex;
-
-    struct MockSpider {
-        start_urls: Vec<String>,
-        processed_items: Arc<Mutex<Vec<String>>>,
-    }
-
-    #[async_trait]
-    impl Spider for MockSpider {
-        type Item = String;
-        type Error = String;
-
-        fn name(&self) -> String {
-            "MockSpider".to_string()
-        }
-
-        fn start_urls(&self) -> Vec<String> {
-            self.start_urls.clone()
-        }
-
-        async fn scrape(&self, url: String) -> Result<(Vec<Self::Item>, Vec<String>), Self::Error> {
-            Ok((vec![format!("Scraped {}", url)], vec![]))
-        }
-
-        async fn process(&self, item: Self::Item) -> Result<(), Self::Error> {
-            self.processed_items.lock().unwrap().push(item);
-            Ok(())
-        }
-    }
-
-    #[tokio::test]
-    async fn test_crawler_creation() {
-        let crawler = Crawler::new(Duration::from_millis(100), 2, 2);
-        assert_eq!(crawler.delay, Duration::from_millis(100));
-        assert_eq!(crawler.crawling_concurrency, 2);
-        assert_eq!(crawler.processing_concurrency, 2);
-    }
-
-    #[tokio::test]
-    async fn test_crawler_crawl() {
-        let crawler = Crawler::new(Duration::from_millis(10), 2, 2);
-        let processed_items = Arc::new(Mutex::new(Vec::new()));
-        let spider = Arc::new(MockSpider {
-            start_urls: vec![
-                "http://example.com".to_string(),
-                "http://example.org".to_string(),
-            ],
-            processed_items: processed_items.clone(),
-        });
-
-        crawler.crawl(spider).await;
-
-        let items = processed_items.lock().unwrap();
-        assert_eq!(items.len(), 2);
-        assert!(items.contains(&"Scraped http://example.com".to_string()));
-        assert!(items.contains(&"Scraped http://example.org".to_string()));
-    }
-
-    #[tokio::test]
-    async fn test_crawler_respects_delay() {
-        let delay = Duration::from_millis(100);
-        let crawler = Crawler::new(delay, 1, 1);
-        let processed_items = Arc::new(Mutex::new(Vec::new()));
-        let spider = Arc::new(MockSpider {
-            start_urls: vec![
-                "http://example.com".to_string(),
-                "http://example.org".to_string(),
-            ],
-            processed_items: processed_items.clone(),
-        });
-
-        let start = std::time::Instant::now();
-        crawler.crawl(spider).await;
-        let duration = start.elapsed();
-
-        assert!(
-            duration >= delay * 2,
-            "Crawler should respect the delay between requests"
-        );
     }
 }

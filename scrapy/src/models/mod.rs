@@ -6,7 +6,7 @@ pub struct CrawlResponse {
     pub items: Vec<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ScrapeParams {
     pub url: String,

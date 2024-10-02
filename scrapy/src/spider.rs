@@ -6,7 +6,11 @@ use scraper::{Html, Selector};
 use serde::Serialize;
 use tokio::sync::mpsc;
 
-use crate::{error::AppError, models::WebSocketMessage};
+use crate::{
+    ai::AIService,
+    error::AppError,
+    models::{ScrapeParams, WebSocketMessage},
+};
 
 #[async_trait]
 pub trait Spider: Send + Sync {
@@ -31,6 +35,8 @@ pub struct GenericSpider {
     selectors: Vec<Selector>,
     urls: Vec<String>,
     websocket_tx: Option<mpsc::Sender<WebSocketMessage>>,
+    ai_service: AIService,
+    scrape_params: ScrapeParams,
 }
 
 impl GenericSpider {
@@ -38,7 +44,8 @@ impl GenericSpider {
         selectors: Vec<&str>,
         urls: Vec<String>,
         websocket_tx: Option<mpsc::Sender<WebSocketMessage>>,
-    ) -> Self {
+        scrape_params: ScrapeParams,
+    ) -> Result<Self, AppError> {
         let http_timeout = Duration::from_secs(6);
         let http_client = Client::builder()
             .timeout(http_timeout)
@@ -50,12 +57,16 @@ impl GenericSpider {
             .map(|s| Selector::parse(s).unwrap())
             .collect();
 
-        Self {
+        let ai_service = AIService::new()?;
+
+        Ok(Self {
             http_client,
             selectors,
             urls,
             websocket_tx,
-        }
+            ai_service,
+            scrape_params,
+        })
     }
 }
 
@@ -96,8 +107,19 @@ impl Spider for GenericSpider {
     }
 
     async fn process(&self, item: Self::Item) -> Result<(), Self::Error> {
-        if let Some(tx) = &self.websocket_tx {
-            let _ = tx.send(WebSocketMessage::new_json(&item)).await;
+        if self.scrape_params.enable_scraping {
+            if let Some(content) = item.content.as_ref() {
+                let extracted_items = self
+                    .ai_service
+                    .extract_items(content, &self.scrape_params)
+                    .await?;
+
+                for extracted_item in extracted_items {
+                    if let Some(tx) = &self.websocket_tx {
+                        let _ = tx.send(WebSocketMessage::new_json(&extracted_item)).await;
+                    }
+                }
+            }
         }
         Ok(())
     }
