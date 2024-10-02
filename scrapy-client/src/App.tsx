@@ -1,8 +1,16 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -20,7 +28,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { ScrapingResult } from "./types";
 
 // Mock PRICING object (replace with actual data)
 const PRICING = {
@@ -28,35 +40,30 @@ const PRICING = {
   "GPT-4": { price: 0.03 },
 };
 
-interface ScrapeResults {
-  allData: {
-    id: number;
-    title: string;
-    price: string;
-  }[];
-  inputTokens: number;
-  outputTokens: number;
-  totalCost: number;
-  outputFolder: string;
-  paginationInfo: {
-    pageUrls: string[];
-    tokenCounts: {
-      inputTokens: number;
-      outputTokens: number;
-    };
-    price: number;
-  } | null;
-}
+const formSchema = z.object({
+  model: z.string().min(1, "Please select a model"),
+  urls: z.string().min(1, "Please enter at least one URL"),
+  enableScraping: z.boolean(),
+  fieldsToExtract: z.array(z.string()).optional(),
+  enablePagination: z.boolean(),
+  paginationDetails: z.string().optional(),
+});
 
 function App() {
-  const [results, setResults] = useState<ScrapeResults | null>(null);
+  const [results, setResults] = useState<ScrapingResult | null>(null);
   const [performScrape, setPerformScrape] = useState(false);
-  const [modelSelection, setModelSelection] = useState(Object.keys(PRICING)[0]);
-  const [urlInput, setUrlInput] = useState("");
-  const [showTags, setShowTags] = useState(false);
-  const [tags, setTags] = useState<string[]>([]);
-  const [usePagination, setUsePagination] = useState(false);
-  const [paginationDetails, setPaginationDetails] = useState("");
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      model: Object.keys(PRICING)[0],
+      urls: "",
+      enableScraping: false,
+      fieldsToExtract: [],
+      enablePagination: false,
+      paginationDetails: "",
+    },
+  });
 
   useEffect(() => {
     const eventSource = new EventSource("/api/events");
@@ -70,7 +77,7 @@ function App() {
     };
   }, []);
 
-  const handleScrape = async () => {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setPerformScrape(true);
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
@@ -83,9 +90,9 @@ function App() {
       inputTokens: 1000,
       outputTokens: 500,
       totalCost:
-        (PRICING[modelSelection as keyof typeof PRICING].price * 1500) / 1000,
+        (PRICING[values.model as keyof typeof PRICING].price * 1500) / 1000,
       outputFolder: `output/${new Date().toISOString().split("T")[0]}`,
-      paginationInfo: usePagination
+      paginationInfo: values.enablePagination
         ? {
             pageUrls: [
               "http://example.com/page/1",
@@ -93,7 +100,7 @@ function App() {
             ],
             tokenCounts: { inputTokens: 200, outputTokens: 100 },
             price:
-              (PRICING[modelSelection as keyof typeof PRICING].price * 300) /
+              (PRICING[values.model as keyof typeof PRICING].price * 300) /
               1000,
           }
         : null,
@@ -105,17 +112,7 @@ function App() {
   const clearResults = () => {
     setResults(null);
     setPerformScrape(false);
-  };
-
-  const handleAddTag = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" && (event.target as HTMLInputElement).value) {
-      setTags([...tags, (event.target as HTMLInputElement).value]);
-      (event.target as HTMLInputElement).value = "";
-    }
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    setTags(tags.filter((tag) => tag !== tagToRemove));
+    form.reset();
   };
 
   useEffect(() => {
@@ -128,83 +125,169 @@ function App() {
       <div className="w-64 bg-secondary p-4">
         <h2 className="mb-4 text-2xl font-bold">Web Scraper Settings</h2>
 
-        <Select value={modelSelection} onValueChange={setModelSelection}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select Model" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.keys(PRICING).map((model) => (
-              <SelectItem key={model} value={model}>
-                {model}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Input
-          className="mt-4"
-          placeholder="Enter URL(s) separated by whitespace"
-          value={urlInput}
-          onChange={(e) => setUrlInput(e.target.value)}
-        />
-
-        <div className="mt-4 flex items-center">
-          <Switch
-            id="show-tags"
-            checked={showTags}
-            onCheckedChange={setShowTags}
-          />
-          <Label htmlFor="show-tags" className="ml-2">
-            Enable Scraping
-          </Label>
-        </div>
-
-        {showTags && (
-          <div className="mt-4">
-            <Label htmlFor="tags-input">Enter Fields to Extract:</Label>
-            <Input
-              id="tags-input"
-              placeholder="Press enter to add a tag"
-              onKeyPress={handleAddTag}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="model"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Model</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Model" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.keys(PRICING).map((model) => (
+                        <SelectItem key={model} value={model}>
+                          {model}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            <div className="mt-2 flex flex-wrap gap-2">
-              {tags.map((tag, index) => (
-                <Badge
-                  key={index}
-                  variant="secondary"
-                  className="cursor-pointer"
-                  onClick={() => removeTag(tag)}
-                >
-                  {tag} ×
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
 
-        <div className="mt-4 flex items-center">
-          <Switch
-            id="use-pagination"
-            checked={usePagination}
-            onCheckedChange={setUsePagination}
-          />
-          <Label htmlFor="use-pagination" className="ml-2">
-            Enable Pagination
-          </Label>
-        </div>
+            <FormField
+              control={form.control}
+              name="urls"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>URLs</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter URL(s) separated by whitespace"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Enter one or more URLs to scrape, separated by spaces.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {usePagination && (
-          <Input
-            className="mt-4"
-            placeholder="Enter Pagination Details"
-            value={paginationDetails}
-            onChange={(e) => setPaginationDetails(e.target.value)}
-          />
-        )}
+            <FormField
+              control={form.control}
+              name="enableScraping"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Enable Scraping</FormLabel>
+                    <FormDescription>
+                      Turn on to specify fields to extract
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-        <Button className="mt-4 w-full" onClick={handleScrape}>
-          Scrape
-        </Button>
+            {form.watch("enableScraping") && (
+              <FormField
+                control={form.control}
+                name="fieldsToExtract"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fields to Extract</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Press enter to add a field"
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter" && e.currentTarget.value) {
+                            e.preventDefault();
+                            field.onChange([
+                              ...(field.value || []),
+                              e.currentTarget.value,
+                            ]);
+                            e.currentTarget.value = "";
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {field.value?.map((tag, index) => (
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="cursor-pointer"
+                          onClick={() => {
+                            field.onChange(
+                              field.value?.filter((t) => t !== tag),
+                            );
+                          }}
+                        >
+                          {tag} ×
+                        </Badge>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <FormField
+              control={form.control}
+              name="enablePagination"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Enable Pagination
+                    </FormLabel>
+                    <FormDescription>
+                      Turn on to specify pagination details
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {form.watch("enablePagination") && (
+              <FormField
+                control={form.control}
+                name="paginationDetails"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pagination Details</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter Pagination Details"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <Button type="submit" className="w-full">
+              Scrape
+            </Button>
+          </form>
+        </Form>
+
         <Button
           className="mt-2 w-full"
           variant="outline"

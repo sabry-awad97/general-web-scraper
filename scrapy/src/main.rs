@@ -9,10 +9,10 @@ use std::time::Duration;
 mod ai;
 mod crawler;
 mod error;
+mod models;
 mod routes;
 mod services;
 mod spider;
-mod types;
 
 #[rocket::launch]
 fn rocket() -> _ {

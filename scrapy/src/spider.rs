@@ -27,10 +27,11 @@ pub struct GenericItem {
 pub struct GenericSpider {
     http_client: Client,
     selectors: Vec<Selector>,
+    urls: Vec<String>,
 }
 
 impl GenericSpider {
-    pub fn new(selectors: Vec<&str>) -> Self {
+    pub fn new(selectors: Vec<&str>, urls: Vec<String>) -> Self {
         let http_timeout = Duration::from_secs(6);
         let http_client = Client::builder()
             .timeout(http_timeout)
@@ -45,6 +46,7 @@ impl GenericSpider {
         Self {
             http_client,
             selectors,
+            urls,
         }
     }
 }
@@ -59,7 +61,7 @@ impl Spider for GenericSpider {
     }
 
     fn start_urls(&self) -> Vec<String> {
-        vec![]
+        self.urls.clone()
     }
 
     async fn scrape(&self, url: String) -> Result<(Vec<Self::Item>, Vec<String>), Self::Error> {

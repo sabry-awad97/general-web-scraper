@@ -3,8 +3,8 @@ use rocket::serde::json::Json;
 use rocket::{get, post, State};
 use std::sync::Arc;
 
+use crate::models::{CrawlRequest, CrawlResponse};
 use crate::services::{CrawlerService, WebSocketService};
-use crate::types::{CrawlRequest, CrawlResponse};
 
 #[get("/")]
 pub fn index() -> &'static str {

@@ -1,5 +1,5 @@
+use crate::models::{CrawlRequest, CrawlResponse};
 use crate::spider::GenericSpider;
-use crate::types::{CrawlRequest, CrawlResponse};
 use crate::Crawler;
 use async_trait::async_trait;
 use rocket::tokio::sync::broadcast::{channel, Receiver, Sender};
@@ -64,9 +64,9 @@ impl RealCrawlerService {
 
 #[async_trait]
 impl CrawlerService for RealCrawlerService {
-    async fn crawl(&self, _params: CrawlRequest) -> Result<CrawlResponse, String> {
+    async fn crawl(&self, params: CrawlRequest) -> Result<CrawlResponse, String> {
         let selectors = vec!["a", "p", "h1", "h2", "h3"];
-        let spider = Arc::new(GenericSpider::new(selectors));
+        let spider = Arc::new(GenericSpider::new(selectors, params.urls));
         self.crawler.crawl(spider).await;
         Ok(CrawlResponse {
             items: vec![String::from("Crawled item")],
