@@ -13,36 +13,18 @@ import { useEffect, useState } from "react";
 import Sidebar from "./components/sidebar";
 import { useCrawl } from "./hooks/useCrawl";
 import { useEventSource } from "./hooks/useEventSource";
-import { useWebSocket } from "./hooks/useWebSocket";
 import { PRICING } from "./lib/constants";
 import { ScrapeSchema, ScrapingResult } from "./types";
 
 function App() {
-  const events = useEventSource("/api/events");
-  const { messages, sendMessage } = useWebSocket("ws://localhost:8000/api/ws");
+  const { error, isConnected } = useEventSource("/api/events");
 
   const [results, setResults] = useState<ScrapingResult | null>(null);
   const [performScrape, setPerformScrape] = useState(false);
   const { mutateAsync: crawl } = useCrawl();
 
-  useEffect(() => {
-    console.log("events", events);
-  }, [events]);
-
-  useEffect(() => {
-    console.log("WebSocket messages:", messages);
-  }, [messages]);
-
   const onSubmit = async (values: ScrapeSchema) => {
     setPerformScrape(true);
-
-    sendMessage("start");
-
-    const buffer = new ArrayBuffer(4);
-    const view = new DataView(buffer);
-    view.setInt32(0, 123456, true);
-
-    sendMessage(view);
 
     const result = await crawl(values);
 
@@ -85,6 +67,14 @@ function App() {
     document.body.classList.add("dark");
   }, []);
 
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
+  if (!isConnected) {
+    return <div>Connecting...</div>;
+  }
+
   return (
     <div className="flex h-screen">
       {/* Sidebar */}
@@ -95,7 +85,7 @@ function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 p-4 overflow-auto">
         <h1 className="mb-4 text-3xl font-bold">Universal Web Scraper 🦑</h1>
 
         {performScrape && results ? (
@@ -123,7 +113,7 @@ function App() {
             </ScrollArea>
 
             <h2 className="mt-4 text-2xl font-semibold">Download Options</h2>
-            <div className="mt-2 flex gap-2">
+            <div className="flex gap-2 mt-2">
               <Button onClick={() => alert("Downloading JSON...")}>
                 Download JSON
               </Button>
@@ -153,7 +143,7 @@ function App() {
                     </TableBody>
                   </Table>
                 </ScrollArea>
-                <div className="mt-2 flex gap-2">
+                <div className="flex gap-2 mt-2">
                   <Button
                     onClick={() => alert("Downloading Pagination JSON...")}
                   >

@@ -65,12 +65,7 @@ pub async fn events(
         let mut receiver = receiver;
         loop {
             match receiver.recv().await {
-                Ok(message) => {
-                    match message {
-                        WebSocketMessage::Text { payload } => yield Event::data(payload),
-                        WebSocketMessage::Json { payload } => yield Event::json(&payload),
-                    }
-                },
+                Ok(message) => yield Event::json(&message),
                 Err(e) => {
                     log::error!("WebSocket channel closed: {}", e);
                     return;
@@ -87,7 +82,10 @@ pub async fn crawl(
     crawler_service: &State<Arc<dyn CrawlerService + Send + Sync>>,
 ) -> Json<CrawlResponse> {
     match websocket_service
-        .send_message(WebSocketMessage::new_text(format!("Crawling started for {}", params.url)))
+        .send_message(WebSocketMessage::new_text(format!(
+            "Crawling started for {}",
+            params.url
+        )))
         .await
     {
         Ok(_) => log::info!("Start message sent successfully"),
@@ -108,7 +106,10 @@ pub async fn crawl(
         }
         Err(e) => {
             if let Err(send_err) = websocket_service
-                .send_message(WebSocketMessage::new_text(format!("Crawling failed: {}", e)))
+                .send_message(WebSocketMessage::new_text(format!(
+                    "Crawling failed: {}",
+                    e
+                )))
                 .await
             {
                 log::error!("Failed to send error message: {}", send_err);

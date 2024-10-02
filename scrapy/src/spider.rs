@@ -30,14 +30,14 @@ pub struct GenericSpider {
     http_client: Client,
     selectors: Vec<Selector>,
     urls: Vec<String>,
-    websocket_tx: Option<mpsc::Sender<WebSocketMessage<String>>>,
+    websocket_tx: Option<mpsc::Sender<WebSocketMessage>>,
 }
 
 impl GenericSpider {
     pub fn new(
         selectors: Vec<&str>,
         urls: Vec<String>,
-        websocket_tx: Option<mpsc::Sender<WebSocketMessage<String>>>,
+        websocket_tx: Option<mpsc::Sender<WebSocketMessage>>,
     ) -> Self {
         let http_timeout = Duration::from_secs(6);
         let http_client = Client::builder()
@@ -97,8 +97,7 @@ impl Spider for GenericSpider {
 
     async fn process(&self, item: Self::Item) -> Result<(), Self::Error> {
         if let Some(tx) = &self.websocket_tx {
-            let string = serde_json::to_string(&item).unwrap_or_default();
-            let _ = tx.send(WebSocketMessage::new_json(string)).await;
+            let _ = tx.send(WebSocketMessage::new_json(&item)).await;
         }
         Ok(())
     }

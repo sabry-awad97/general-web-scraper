@@ -11,13 +11,13 @@ use tokio::sync::mpsc;
 #[derive(Error, Debug)]
 pub enum WebSocketError {
     #[error("Failed to send message: {0}")]
-    SendError(#[from] tokio::sync::broadcast::error::SendError<WebSocketMessage<String>>),
+    SendError(#[from] tokio::sync::broadcast::error::SendError<WebSocketMessage>),
 }
 
 #[async_trait]
 pub trait WebSocketService: Send + Sync {
-    async fn send_message(&self, message: WebSocketMessage<String>) -> Result<(), WebSocketError>;
-    async fn subscribe(&self) -> Receiver<WebSocketMessage<String>>;
+    async fn send_message(&self, message: WebSocketMessage) -> Result<(), WebSocketError>;
+    async fn subscribe(&self) -> Receiver<WebSocketMessage>;
 }
 
 #[async_trait]
@@ -26,13 +26,13 @@ pub trait CrawlerService: Send + Sync {
 }
 
 pub struct RealWebSocketService {
-    sender: Arc<Mutex<Sender<WebSocketMessage<String>>>>,
-    _receiver: Receiver<WebSocketMessage<String>>, // Keep a reference to prevent the channel from closing
+    sender: Arc<Mutex<Sender<WebSocketMessage>>>,
+    _receiver: Receiver<WebSocketMessage>, // Keep a reference to prevent the channel from closing
 }
 
 impl RealWebSocketService {
     pub fn new(capacity: usize) -> Self {
-        let (sender, receiver) = channel::<WebSocketMessage<String>>(capacity);
+        let (sender, receiver) = channel::<WebSocketMessage>(capacity);
         RealWebSocketService {
             sender: Arc::new(Mutex::new(sender)),
             _receiver: receiver,
@@ -42,13 +42,13 @@ impl RealWebSocketService {
 
 #[async_trait]
 impl WebSocketService for RealWebSocketService {
-    async fn send_message(&self, message: WebSocketMessage<String>) -> Result<(), WebSocketError> {
+    async fn send_message(&self, message: WebSocketMessage) -> Result<(), WebSocketError> {
         let sender = self.sender.lock().await;
         let _ = sender.send(message).map_err(WebSocketError::from);
         Ok(())
     }
 
-    async fn subscribe(&self) -> Receiver<WebSocketMessage<String>> {
+    async fn subscribe(&self) -> Receiver<WebSocketMessage> {
         self.sender.lock().await.subscribe()
     }
 }
