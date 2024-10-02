@@ -1,20 +1,118 @@
-mod ai;
-mod crawler;
-mod downloader;
-mod spider;
-
+use async_trait::async_trait;
+use crawler::Crawler;
+use reqwest::Client;
 use rocket::response::stream::{Event, EventStream};
 use rocket::tokio::sync::broadcast::{channel, Sender};
 use rocket::tokio::sync::Mutex;
 use rocket::State;
 use rocket::{fs::FileServer, get, post, routes, serde::json::Json};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
+use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
+use spider::Spider;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
+mod ai;
+mod crawler;
+mod spider;
+
+#[derive(thiserror::Error, Debug)]
+pub enum AppError {
+    #[error("Reqwest Error: {0}")]
+    Reqwest(#[from] reqwest::Error),
+}
+
+struct GenericSpider {
+    http_client: Client,
+    selectors: Vec<Selector>,
+}
+
+impl GenericSpider {
+    pub fn new(selectors: Vec<&str>) -> Self {
+        let http_timeout = Duration::from_secs(6);
+        let http_client = Client::builder()
+            .timeout(http_timeout)
+            .build()
+            .expect("spiders/quotes: Building HTTP client");
+
+        let selectors = selectors
+            .into_iter()
+            .map(|s| Selector::parse(s).unwrap())
+            .collect();
+
+        Self {
+            http_client,
+            selectors,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GenericItem {
+    pub url: String,
+    pub title: Option<String>,
+    pub content: Option<String>,
+}
+
+#[async_trait]
+impl Spider for GenericSpider {
+    type Item = GenericItem;
+    type Error = AppError;
+
+    fn name(&self) -> String {
+        String::from("generic")
+    }
+
+    fn start_urls(&self) -> Vec<String> {
+        vec![]
+    }
+
+    async fn scrape(&self, url: String) -> Result<(Vec<Self::Item>, Vec<String>), Self::Error> {
+        let res = self.http_client.get(&url).send().await?;
+        let html = res.text().await?;
+        let document = Html::parse_document(&html);
+
+        let mut items = Vec::new();
+        let mut new_urls = Vec::new();
+
+        for selector in &self.selectors {
+            for element in document.select(selector) {
+                let title = element.value().attr("title").map(String::from);
+                let content = Some(element.inner_html());
+
+                items.push(GenericItem {
+                    url: url.clone(),
+                    title,
+                    content,
+                });
+
+                // Extract links from the element
+                if let Some(href) = element.value().attr("href") {
+                    new_urls.push(href.to_string());
+                }
+            }
+        }
+
+        println!(
+            "Found {} items and {} new URLs",
+            items.len(),
+            new_urls.len()
+        );
+
+        Ok((items, vec![]))
+    }
+
+    async fn process(&self, item: Self::Item) -> Result<(), Self::Error> {
+        println!("Processing item: {:?}", item);
+        Ok(())
+    }
+}
+
+#[async_trait]
 trait CrawlerService {
-    fn crawl(&self, params: CrawlRequest) -> Result<CrawlResponse, String>;
+    async fn crawl(&self, params: CrawlRequest) -> Result<CrawlResponse, String>;
 }
 
 struct WebSocketState {
@@ -81,7 +179,7 @@ mod routes {
             .await;
 
         // Use the CrawlerService to perform the crawl
-        let result = crawler_service.crawl(params.into_inner());
+        let result = crawler_service.crawl(params.into_inner()).await;
 
         match result {
             Ok(response) => {
@@ -96,10 +194,16 @@ mod routes {
     }
 }
 
-struct SimpleCrawlerService;
+struct RealCrawlerService {
+    crawler: Crawler,
+}
 
-impl CrawlerService for SimpleCrawlerService {
-    fn crawl(&self, params: CrawlRequest) -> Result<CrawlResponse, String> {
+#[async_trait]
+impl CrawlerService for RealCrawlerService {
+    async fn crawl(&self, _params: CrawlRequest) -> Result<CrawlResponse, String> {
+        let selectors = vec!["a", "p", "h1", "h2", "h3"];
+        let spider = Arc::new(GenericSpider::new(selectors));
+        self.crawler.crawl(spider).await;
         Ok(CrawlResponse {
             items: vec![String::from("Crawled item")],
         })
@@ -109,7 +213,9 @@ impl CrawlerService for SimpleCrawlerService {
 #[rocket::launch]
 fn rocket() -> _ {
     let websocket_state = Arc::new(WebSocketState::new(1024));
-    let crawler_service: Arc<dyn CrawlerService + Send + Sync> = Arc::new(SimpleCrawlerService);
+    let crawler = Crawler::new(Duration::from_millis(200), 2, 500);
+    let crawler_service: Arc<dyn CrawlerService + Send + Sync> =
+        Arc::new(RealCrawlerService { crawler });
 
     let cors = rocket_cors::CorsOptions {
         allowed_origins: AllowedOrigins::all(),
