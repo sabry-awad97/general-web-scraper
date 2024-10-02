@@ -54,22 +54,28 @@ export type ScrapingRule = {
   customFunction?: string;
 };
 
-
-export type CrawlParams = {
+export interface CrawlParams {
   urls: string[];
   delay: number;
   crawling_concurrency: number;
   processing_concurrency: number;
-  scraping_rules: ScrapingRule[];
-  follow_links: boolean;
-  max_depth: number;
-};
+}
+
+export interface InitializeParams {
+  delay: number;
+  crawling_concurrency: number;
+  processing_concurrency: number;
+}
 
 type CrawlResponse = {
   items: string[];
 };
 
 const api = {
+  initialize: async (params: InitializeParams) => {
+    const response = await apiClient.post<string>("/initialize", params);
+    return response.data;
+  },
   crawl: async ({
     urls,
     delay,

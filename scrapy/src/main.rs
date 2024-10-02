@@ -16,6 +16,8 @@ mod types;
 
 #[rocket::launch]
 fn rocket() -> _ {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
+
     let websocket_service: Arc<dyn WebSocketService + Send + Sync> =
         Arc::new(RealWebSocketService::new(1024));
 

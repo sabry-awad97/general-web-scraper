@@ -1,8 +1,3 @@
-import { useState, useEffect } from "react";
-import { toast } from "sonner";
-import { ScrapingRule } from "./api";
-import { useCrawl } from "./hooks/useCrawl";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,8 +11,13 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useInitializeCrawler } from "@/hooks/useInitializeCrawler";
 import { DownloadIcon, Loader2, PlusIcon, TrashIcon, X } from "lucide-react";
-import { KeyboardEvent } from "react";
+import { KeyboardEvent, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { ScrapingRule } from "./api";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { useCrawl } from "./hooks/useCrawl";
 
 function App() {
   const [urls, setUrls] = useState("");
@@ -36,9 +36,12 @@ function App() {
   const [followLinks, setFollowLinks] = useState(false);
   const [maxDepth, setMaxDepth] = useState(1);
   const [wsMessages, setWsMessages] = useState<string[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const { mutateAsync: initializeCrawler, isPending: isInitializing } =
+    useInitializeCrawler();
 
   useEffect(() => {
-    const eventSource = new EventSource('/api/events');
+    const eventSource = new EventSource("/api/events");
 
     eventSource.onmessage = (event) => {
       setWsMessages((prevMessages) => [...prevMessages, event.data]);
@@ -49,8 +52,32 @@ function App() {
     };
   }, []);
 
+  const handleInitialize = async () => {
+    try {
+      await initializeCrawler({
+        delay,
+        crawling_concurrency: crawlingConcurrency,
+        processing_concurrency: processingConcurrency,
+      });
+      setIsInitialized(true);
+      toast.success("Crawler initialized successfully");
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Failed to initialize crawler", {
+        description: "An error occurred while initializing. Please try again.",
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!isInitialized) {
+      toast.error("Crawler not initialized", {
+        description: "Please initialize the crawler before crawling.",
+      });
+      return;
+    }
+
     setWsMessages([]); // Clear previous messages
     try {
       const response = await crawl({
@@ -58,9 +85,6 @@ function App() {
         delay,
         crawling_concurrency: crawlingConcurrency,
         processing_concurrency: processingConcurrency,
-        scraping_rules: scrapingRules,
-        follow_links: followLinks,
-        max_depth: maxDepth,
       });
       setResults(response.items);
       toast.success("Crawling completed", {
@@ -276,6 +300,23 @@ function App() {
                     />
                   </div>
                 )}
+                <Button
+                  type="button"
+                  onClick={handleInitialize}
+                  disabled={isInitializing || isInitialized}
+                  className="mb-4"
+                >
+                  {isInitializing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <span>Initializing...</span>
+                    </>
+                  ) : isInitialized ? (
+                    "Initialized"
+                  ) : (
+                    "Initialize Crawler"
+                  )}
+                </Button>
                 <Button type="submit" className="w-full" disabled={isPending}>
                   {isPending ? (
                     <>
