@@ -1,4 +1,4 @@
-use crate::models::{CrawlRequest, CrawlResponse};
+use crate::models::{CrawlResponse, ScrapeParams};
 use crate::spider::GenericSpider;
 use crate::Crawler;
 use async_trait::async_trait;
@@ -21,7 +21,7 @@ pub trait WebSocketService: Send + Sync {
 
 #[async_trait]
 pub trait CrawlerService: Send + Sync {
-    async fn crawl(&self, params: CrawlRequest) -> Result<CrawlResponse, String>;
+    async fn crawl(&self, params: ScrapeParams) -> Result<CrawlResponse, String>;
 }
 
 pub struct RealWebSocketService {
@@ -64,9 +64,9 @@ impl RealCrawlerService {
 
 #[async_trait]
 impl CrawlerService for RealCrawlerService {
-    async fn crawl(&self, params: CrawlRequest) -> Result<CrawlResponse, String> {
+    async fn crawl(&self, params: ScrapeParams) -> Result<CrawlResponse, String> {
         let selectors = vec!["a", "p", "h1", "h2", "h3"];
-        let spider = Arc::new(GenericSpider::new(selectors, params.urls));
+        let spider = Arc::new(GenericSpider::new(selectors, vec![params.url]));
         self.crawler.crawl(spider).await;
         Ok(CrawlResponse {
             items: vec![String::from("Crawled item")],

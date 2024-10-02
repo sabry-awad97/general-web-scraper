@@ -1,3 +1,4 @@
+import { ScrapeSchema, ScrapingResult } from "@/types";
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from "axios";
 
 // Define the base URL for your API
@@ -45,49 +46,10 @@ apiClient.interceptors.response.use(
   },
 );
 
-// Define the ScrapingRule type
-export type ScrapingRule = {
-  selector: string;
-  attribute: string;
-  name: string;
-  type: "text" | "attribute" | "html" | "custom";
-  customFunction?: string;
-};
-
-export interface CrawlParams {
-  urls: string[];
-  delay: number;
-  crawling_concurrency: number;
-  processing_concurrency: number;
-}
-
-export interface InitializeParams {
-  delay: number;
-  crawling_concurrency: number;
-  processing_concurrency: number;
-}
-
-type CrawlResponse = {
-  items: string[];
-};
-
 const api = {
-  initialize: async (params: InitializeParams) => {
-    const response = await apiClient.post<string>("/initialize", params);
-    return response.data;
-  },
-  crawl: async ({
-    urls,
-    delay,
-    crawling_concurrency,
-    processing_concurrency,
-  }: CrawlParams) => {
-    const response = await apiClient.post<CrawlResponse>("/crawl", {
-      urls,
-      delay,
-      crawling_concurrency,
-      processing_concurrency,
-    });
+  crawl: async (params: ScrapeSchema) => {
+    const response = await apiClient.post<ScrapingResult>("/crawl", params);
+
     return response.data;
   },
 };

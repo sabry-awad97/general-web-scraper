@@ -1,16 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-pub struct CrawlRequest {
-    pub urls: Vec<String>,
-}
-
 #[derive(Serialize)]
 pub struct CrawlResponse {
     pub items: Vec<String>,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScrapeParams {
     pub url: String,
     pub model: String,
@@ -21,6 +17,7 @@ pub struct ScrapeParams {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScrapingResult {
     pub all_data: Vec<serde_json::Value>,
     pub input_tokens: u32,
@@ -31,6 +28,7 @@ pub struct ScrapingResult {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaginationInfo {
     pub page_urls: Vec<String>,
     pub token_counts: TokenCounts,
@@ -38,6 +36,7 @@ pub struct PaginationInfo {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TokenCounts {
     pub input_tokens: u32,
     pub output_tokens: u32,

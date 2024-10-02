@@ -3,7 +3,7 @@ use rocket::serde::json::Json;
 use rocket::{get, post, State};
 use std::sync::Arc;
 
-use crate::models::{CrawlRequest, CrawlResponse};
+use crate::models::{CrawlResponse, ScrapeParams};
 use crate::services::{CrawlerService, WebSocketService};
 
 #[get("/")]
@@ -32,12 +32,12 @@ pub async fn events(
 
 #[post("/crawl", data = "<params>")]
 pub async fn crawl(
-    params: Json<CrawlRequest>,
+    params: Json<ScrapeParams>,
     websocket_service: &State<Arc<dyn WebSocketService + Send + Sync>>,
     crawler_service: &State<Arc<dyn CrawlerService + Send + Sync>>,
 ) -> Json<CrawlResponse> {
     match websocket_service
-        .send_message(format!("Crawling started for {} URLs", params.urls.len()))
+        .send_message(format!("Crawling started for {}", params.url))
         .await
     {
         Ok(_) => log::info!("Start message sent successfully"),

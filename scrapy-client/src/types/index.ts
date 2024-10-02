@@ -1,3 +1,8 @@
+import { scrapeSchema } from "@/schemas";
+import { z } from "zod";
+
+export type ScrapeSchema = z.infer<typeof scrapeSchema>;
+
 export interface ScrapingResult {
   allData: {
     id: number;

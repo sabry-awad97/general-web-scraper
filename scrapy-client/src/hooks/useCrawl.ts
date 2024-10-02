@@ -1,10 +1,11 @@
+import { ScrapeSchema } from "@/schemas";
 import { useMutation } from "@tanstack/react-query";
-import api, { CrawlParams } from "../api";
+import api from "../api";
 
 export function useCrawl() {
   return useMutation({
     mutationKey: ["crawl"],
-    mutationFn: (params: CrawlParams) => {
+    mutationFn: (params: ScrapeSchema) => {
       return api.crawl(params);
     },
   });
