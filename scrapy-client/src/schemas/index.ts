@@ -2,10 +2,9 @@ import { z } from "zod";
 
 export const scrapeSchema = z.object({
   model: z.string().min(1, "Please select a model"),
-  urls: z.string().min(1, "Please enter at least one URL"),
+  url: z.string().min(1, "Please enter a URL"),
   enableScraping: z.boolean(),
-  fieldsToExtract: z.array(z.string()).optional(),
+  tags: z.array(z.string()).default([]),
   enablePagination: z.boolean(),
   paginationDetails: z.string().optional(),
 });
-

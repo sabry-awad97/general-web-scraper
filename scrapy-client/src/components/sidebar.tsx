@@ -36,11 +36,11 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
     resolver: zodResolver(scrapeSchema),
     defaultValues: {
       model: "",
-      urls: "",
+      url: "",
       enableScraping: false,
-      fieldsToExtract: [],
+      tags: [],
       enablePagination: false,
-      paginationDetails: "",
+      paginationDetails: undefined,
     },
   });
 
@@ -80,19 +80,14 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
 
           <FormField
             control={form.control}
-            name="urls"
+            name="url"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>URLs</FormLabel>
+                <FormLabel>URL</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="Enter URL(s) separated by whitespace"
-                    {...field}
-                  />
+                  <Input placeholder="Enter URL" {...field} />
                 </FormControl>
-                <FormDescription>
-                  Enter one or more URLs to scrape, separated by spaces.
-                </FormDescription>
+                <FormDescription>Enter the URL to scrape</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -122,7 +117,7 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
           {form.watch("enableScraping") && (
             <FormField
               control={form.control}
-              name="fieldsToExtract"
+              name="tags"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Fields to Extract</FormLabel>
@@ -133,7 +128,7 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
                         if (e.key === "Enter" && e.currentTarget.value) {
                           e.preventDefault();
                           field.onChange([
-                            ...(field.value || []),
+                            ...field.value,
                             e.currentTarget.value,
                           ]);
                           e.currentTarget.value = "";

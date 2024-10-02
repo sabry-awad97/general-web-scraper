@@ -1,3 +1,4 @@
 /target
 Scrapy.toml
 static
+.env

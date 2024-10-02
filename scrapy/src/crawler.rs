@@ -165,8 +165,6 @@ impl Crawler {
     }
 }
 
-// ... existing code ...
-
 #[cfg(test)]
 mod tests {
     use super::*;
