@@ -1,5 +1,9 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -7,44 +11,58 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { useInitializeCrawler } from "@/hooks/useInitializeCrawler";
-import { DownloadIcon, Loader2, PlusIcon, TrashIcon, X } from "lucide-react";
-import { KeyboardEvent, useEffect, useState } from "react";
-import { toast } from "sonner";
-import { ScrapingRule } from "./api";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { useCrawl } from "./hooks/useCrawl";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useEffect, useState } from "react";
+
+// Mock PRICING object (replace with actual data)
+const PRICING = {
+  "GPT-3.5-Turbo": { price: 0.002 },
+  "GPT-4": { price: 0.03 },
+};
+
+interface ScrapeResults {
+  allData: {
+    id: number;
+    title: string;
+    price: string;
+  }[];
+  inputTokens: number;
+  outputTokens: number;
+  totalCost: number;
+  outputFolder: string;
+  paginationInfo: {
+    pageUrls: string[];
+    tokenCounts: {
+      inputTokens: number;
+      outputTokens: number;
+    };
+    price: number;
+  } | null;
+}
 
 function App() {
-  const [urls, setUrls] = useState("");
-  const [delay, setDelay] = useState(100);
-  const [crawlingConcurrency, setCrawlingConcurrency] = useState(2);
-  const [processingConcurrency, setProcessingConcurrency] = useState(2);
-  const [results, setResults] = useState<string[]>([]);
-  const [fields, setFields] = useState<string[]>([]);
-  const [newField, setNewField] = useState("");
-  const { mutateAsync: crawl, isPending } = useCrawl();
-  const [scrapingRules, setScrapingRules] = useState<ScrapingRule[]>([]);
-  const [activeTab, setActiveTab] = useState<"config" | "results" | "rules">(
-    "config",
-  );
-  const [resultFormat, setResultFormat] = useState<"json" | "csv">("json");
-  const [followLinks, setFollowLinks] = useState(false);
-  const [maxDepth, setMaxDepth] = useState(1);
-  const [wsMessages, setWsMessages] = useState<string[]>([]);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const { mutateAsync: initializeCrawler, isPending: isInitializing } =
-    useInitializeCrawler();
+  const [results, setResults] = useState<ScrapeResults | null>(null);
+  const [performScrape, setPerformScrape] = useState(false);
+  const [modelSelection, setModelSelection] = useState(Object.keys(PRICING)[0]);
+  const [urlInput, setUrlInput] = useState("");
+  const [showTags, setShowTags] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [usePagination, setUsePagination] = useState(false);
+  const [paginationDetails, setPaginationDetails] = useState("");
 
   useEffect(() => {
     const eventSource = new EventSource("/api/events");
 
     eventSource.onmessage = (event) => {
-      setWsMessages((prevMessages) => [...prevMessages, event.data]);
+      console.log("event", event);
     };
 
     return () => {
@@ -52,429 +70,250 @@ function App() {
     };
   }, []);
 
-  const handleInitialize = async () => {
-    try {
-      await initializeCrawler({
-        delay,
-        crawling_concurrency: crawlingConcurrency,
-        processing_concurrency: processingConcurrency,
-      });
-      setIsInitialized(true);
-      toast.success("Crawler initialized successfully");
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Failed to initialize crawler", {
-        description: "An error occurred while initializing. Please try again.",
-      });
+  const handleScrape = async () => {
+    setPerformScrape(true);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    const mockResults = {
+      allData: [
+        { id: 1, title: "Item 1", price: "$10.99" },
+        { id: 2, title: "Item 2", price: "$15.99" },
+        { id: 3, title: "Item 3", price: "$20.99" },
+      ],
+      inputTokens: 1000,
+      outputTokens: 500,
+      totalCost:
+        (PRICING[modelSelection as keyof typeof PRICING].price * 1500) / 1000,
+      outputFolder: `output/${new Date().toISOString().split("T")[0]}`,
+      paginationInfo: usePagination
+        ? {
+            pageUrls: [
+              "http://example.com/page/1",
+              "http://example.com/page/2",
+            ],
+            tokenCounts: { inputTokens: 200, outputTokens: 100 },
+            price:
+              (PRICING[modelSelection as keyof typeof PRICING].price * 300) /
+              1000,
+          }
+        : null,
+    };
+
+    setResults(mockResults);
+  };
+
+  const clearResults = () => {
+    setResults(null);
+    setPerformScrape(false);
+  };
+
+  const handleAddTag = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && (event.target as HTMLInputElement).value) {
+      setTags([...tags, (event.target as HTMLInputElement).value]);
+      (event.target as HTMLInputElement).value = "";
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!isInitialized) {
-      toast.error("Crawler not initialized", {
-        description: "Please initialize the crawler before crawling.",
-      });
-      return;
-    }
-
-    setWsMessages([]); // Clear previous messages
-    try {
-      const response = await crawl({
-        urls: urls.split("\n"),
-        delay,
-        crawling_concurrency: crawlingConcurrency,
-        processing_concurrency: processingConcurrency,
-      });
-      setResults(response.items);
-      toast.success("Crawling completed", {
-        description: "The crawling process has finished successfully.",
-      });
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Crawling failed", {
-        description: "An error occurred while crawling. Please try again.",
-      });
-    }
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
-  const handleAddField = () => {
-    if (newField && !fields.includes(newField)) {
-      setFields([...fields, newField]);
-      setNewField("");
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddField();
-    }
-  };
-
-  const handleRemoveField = (field: string) => {
-    setFields(fields.filter((f) => f !== field));
-  };
-
-  const handleAddRule = () => {
-    setScrapingRules([
-      ...scrapingRules,
-      {
-        selector: "",
-        attribute: "text",
-        name: "",
-        type: "text",
-      },
-    ]);
-  };
-
-  const handleUpdateRule = (
-    index: number,
-    field: keyof ScrapingRule,
-    value: string | ScrapingRule["type"],
-  ) => {
-    const updatedRules = [...scrapingRules];
-    updatedRules[index] = { ...updatedRules[index], [field]: value };
-
-    // Reset customFunction when type is not 'custom'
-    if (field === "type" && value !== "custom") {
-      delete updatedRules[index].customFunction;
-    }
-
-    setScrapingRules(updatedRules);
-  };
-
-  const handleRemoveRule = (index: number) => {
-    setScrapingRules(scrapingRules.filter((_, i) => i !== index));
-  };
-
-  const handleDownloadResults = () => {
-    let content: string;
-    let filename: string;
-
-    if (resultFormat === "json") {
-      content = JSON.stringify(results, null, 2);
-      filename = "scraping_results.json";
-    } else {
-      // Convert results to CSV
-      const headers = Object.keys(results[0] || {}).join(",");
-      const rows = results
-        .map((item) => Object.values(item).join(","))
-        .join("\n");
-      content = `${headers}\n${rows}`;
-      filename = "scraping_results.csv";
-    }
-
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+  useEffect(() => {
+    document.body.classList.add("dark");
+  }, []);
 
   return (
-    <div className="container p-4 mx-auto">
-      <h1 className="mb-6 text-3xl font-bold">Advanced Web Scraper</h1>
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as typeof activeTab)}
-      >
-        <TabsList className="mb-4">
-          <TabsTrigger value="config">Configuration</TabsTrigger>
-          <TabsTrigger value="rules">Scraping Rules</TabsTrigger>
-          <TabsTrigger value="results">Results</TabsTrigger>
-        </TabsList>
-        <TabsContent value="config">
-          <Card>
-            <CardHeader>
-              <CardTitle>Crawl Configuration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    URLs (one per line):
-                  </label>
-                  <Textarea
-                    value={urls}
-                    onChange={(e) => setUrls(e.target.value)}
-                    rows={5}
-                    placeholder="Enter URLs to crawl..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Delay (ms): {delay}
-                  </label>
-                  <Slider
-                    value={[delay]}
-                    onValueChange={(value) => setDelay(value[0])}
-                    min={0}
-                    max={1000}
-                    step={10}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Crawling Concurrency:
-                    </label>
-                    <Input
-                      type="number"
-                      value={crawlingConcurrency}
-                      onChange={(e) =>
-                        setCrawlingConcurrency(parseInt(e.target.value))
-                      }
-                      min={1}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Processing Concurrency:
-                    </label>
-                    <Input
-                      type="number"
-                      value={processingConcurrency}
-                      onChange={(e) =>
-                        setProcessingConcurrency(parseInt(e.target.value))
-                      }
-                      min={1}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Fields to Scrape:
-                  </label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {fields.map((field) => (
-                      <div
-                        key={field}
-                        className="flex items-center px-3 py-1 text-sm rounded-full bg-secondary"
-                      >
-                        {field}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto p-0 ml-2 text-secondary-foreground"
-                          onClick={() => handleRemoveField(field)}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      placeholder="Add a field to scrape"
-                      value={newField}
-                      onChange={(e) => setNewField(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                    />
-                    <Button type="button" onClick={handleAddField}>
-                      Add
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="follow-links"
-                    checked={followLinks}
-                    onCheckedChange={setFollowLinks}
-                  />
-                  <label htmlFor="follow-links" className="text-sm font-medium">
-                    Follow links
-                  </label>
-                </div>
-                {followLinks && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Max Depth:</label>
-                    <Input
-                      type="number"
-                      value={maxDepth}
-                      onChange={(e) => setMaxDepth(parseInt(e.target.value))}
-                      min={1}
-                    />
-                  </div>
-                )}
-                <Button
-                  type="button"
-                  onClick={handleInitialize}
-                  disabled={isInitializing || isInitialized}
-                  className="mb-4"
-                >
-                  {isInitializing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      <span>Initializing...</span>
-                    </>
-                  ) : isInitialized ? (
-                    "Initialized"
-                  ) : (
-                    "Initialize Crawler"
-                  )}
-                </Button>
-                <Button type="submit" className="w-full" disabled={isPending}>
-                  {isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      <span>Crawling...</span>
-                    </>
-                  ) : (
-                    "Start Crawling"
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="rules">
-          <Card>
-            <CardHeader>
-              <CardTitle>Scraping Rules</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {scrapingRules.map((rule, index) => (
-                  <div key={index} className="p-4 space-y-2 border rounded-md">
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        placeholder="CSS Selector"
-                        value={rule.selector}
-                        onChange={(e) =>
-                          handleUpdateRule(index, "selector", e.target.value)
-                        }
-                      />
-                      <Select
-                        value={rule.type}
-                        onValueChange={(value) =>
-                          handleUpdateRule(
-                            index,
-                            "type",
-                            value as ScrapingRule["type"],
-                          )
-                        }
-                      >
-                        <SelectTrigger className="w-[180px]">
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">Text</SelectItem>
-                          <SelectItem value="attribute">Attribute</SelectItem>
-                          <SelectItem value="html">HTML</SelectItem>
-                          <SelectItem value="custom">
-                            Custom Function
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {rule.type === "attribute" && (
-                        <Input
-                          placeholder="Attribute name"
-                          value={rule.attribute}
-                          onChange={(e) =>
-                            handleUpdateRule(index, "attribute", e.target.value)
-                          }
-                        />
-                      )}
-                      <Input
-                        placeholder="Field name"
-                        value={rule.name}
-                        onChange={(e) =>
-                          handleUpdateRule(index, "name", e.target.value)
-                        }
-                      />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleRemoveRule(index)}
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    {rule.type === "custom" && (
-                      <div className="mt-2">
-                        <label className="text-sm font-medium">
-                          Custom Function:
-                        </label>
-                        <Textarea
-                          value={rule.customFunction || ""}
-                          onChange={(e) =>
-                            handleUpdateRule(
-                              index,
-                              "customFunction",
-                              e.target.value,
-                            )
-                          }
-                          placeholder="(element) => { /* Your custom scraping logic here */ }"
-                          rows={3}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <Button onClick={handleAddRule}>
-                  <PlusIcon className="w-4 h-4 mr-2" />
-                  Add Rule
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="results">
-          <Card>
-            <CardHeader>
-              <CardTitle>Results</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-4">
-                <Select
-                  value={resultFormat}
-                  onValueChange={(value) =>
-                    setResultFormat(value as "json" | "csv")
-                  }
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="json">JSON</SelectItem>
-                    <SelectItem value="csv">CSV</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleDownloadResults}>
-                  <DownloadIcon className="w-4 h-4 mr-2" />
-                  Download Results
-                </Button>
-              </div>
-              <ul className="max-h-[400px] space-y-2 overflow-y-auto">
-                {results.map((item, index) => (
-                  <li key={index} className="p-2 rounded-md bg-secondary">
-                    <pre>{JSON.stringify(item, null, 2)}</pre>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+    <div className="flex h-screen">
+      {/* Sidebar */}
+      <div className="w-64 bg-secondary p-4">
+        <h2 className="mb-4 text-2xl font-bold">Web Scraper Settings</h2>
 
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle>Crawling Progress</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2">
-            {wsMessages.map((message, index) => (
-              <li key={index} className="text-sm">
-                {message}
-              </li>
+        <Select value={modelSelection} onValueChange={setModelSelection}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select Model" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.keys(PRICING).map((model) => (
+              <SelectItem key={model} value={model}>
+                {model}
+              </SelectItem>
             ))}
-          </ul>
-        </CardContent>
-      </Card>
+          </SelectContent>
+        </Select>
+
+        <Input
+          className="mt-4"
+          placeholder="Enter URL(s) separated by whitespace"
+          value={urlInput}
+          onChange={(e) => setUrlInput(e.target.value)}
+        />
+
+        <div className="mt-4 flex items-center">
+          <Switch
+            id="show-tags"
+            checked={showTags}
+            onCheckedChange={setShowTags}
+          />
+          <Label htmlFor="show-tags" className="ml-2">
+            Enable Scraping
+          </Label>
+        </div>
+
+        {showTags && (
+          <div className="mt-4">
+            <Label htmlFor="tags-input">Enter Fields to Extract:</Label>
+            <Input
+              id="tags-input"
+              placeholder="Press enter to add a tag"
+              onKeyPress={handleAddTag}
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {tags.map((tag, index) => (
+                <Badge
+                  key={index}
+                  variant="secondary"
+                  className="cursor-pointer"
+                  onClick={() => removeTag(tag)}
+                >
+                  {tag} ×
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center">
+          <Switch
+            id="use-pagination"
+            checked={usePagination}
+            onCheckedChange={setUsePagination}
+          />
+          <Label htmlFor="use-pagination" className="ml-2">
+            Enable Pagination
+          </Label>
+        </div>
+
+        {usePagination && (
+          <Input
+            className="mt-4"
+            placeholder="Enter Pagination Details"
+            value={paginationDetails}
+            onChange={(e) => setPaginationDetails(e.target.value)}
+          />
+        )}
+
+        <Button className="mt-4 w-full" onClick={handleScrape}>
+          Scrape
+        </Button>
+        <Button
+          className="mt-2 w-full"
+          variant="outline"
+          onClick={clearResults}
+        >
+          Clear Results
+        </Button>
+
+        {results && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Scraping Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>Input Tokens: {results.inputTokens}</p>
+              <p>Output Tokens: {results.outputTokens}</p>
+              <p>Total Cost: ${results.totalCost.toFixed(4)}</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto p-4">
+        <h1 className="mb-4 text-3xl font-bold">Universal Web Scraper 🦑</h1>
+
+        {performScrape && results ? (
+          <>
+            <h2 className="mt-4 text-2xl font-semibold">Scraped/Parsed Data</h2>
+            <ScrollArea className="mt-2 h-[300px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {Object.keys(results.allData[0]).map((key) => (
+                      <TableHead key={key}>{key}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {results.allData.map((item, index) => (
+                    <TableRow key={index}>
+                      {Object.values(item).map((value, valueIndex) => (
+                        <TableCell key={valueIndex}>{value}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+
+            <h2 className="mt-4 text-2xl font-semibold">Download Options</h2>
+            <div className="mt-2 flex gap-2">
+              <Button onClick={() => alert("Downloading JSON...")}>
+                Download JSON
+              </Button>
+              <Button onClick={() => alert("Downloading CSV...")}>
+                Download CSV
+              </Button>
+            </div>
+
+            {results.paginationInfo && (
+              <>
+                <h2 className="mt-4 text-2xl font-semibold">
+                  Pagination Information
+                </h2>
+                <ScrollArea className="mt-2 h-[200px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Page URLs</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {results.paginationInfo.pageUrls.map((url, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{url}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    onClick={() => alert("Downloading Pagination JSON...")}
+                  >
+                    Download Pagination JSON
+                  </Button>
+                  <Button
+                    onClick={() => alert("Downloading Pagination CSV...")}
+                  >
+                    Download Pagination CSV
+                  </Button>
+                </div>
+              </>
+            )}
+
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>Output Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>Output Folder: {results.outputFolder}</p>
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <p>No results to display. Click "Scrape" to start.</p>
+        )}
+      </div>
     </div>
   );
 }

@@ -47,7 +47,7 @@ impl WebSocketService for RealWebSocketService {
         Ok(())
     }
 
-   async fn subscribe(&self) -> Receiver<String> {
+    async fn subscribe(&self) -> Receiver<String> {
         self.sender.lock().await.subscribe()
     }
 }
