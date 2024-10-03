@@ -1,3 +1,4 @@
+import JSON5 from "json5";
 import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 
@@ -28,14 +29,10 @@ export function useEventSource(url: string) {
 
   const handleIncomingMessage = useCallback((event: MessageEvent<string>) => {
     try {
-      const parsedMessage = JSON.parse(event.data) as {
-        type: "text" | "json";
-        payload: string;
-      };
+      const parsedMessage = JSON5.parse(event.data);
       console.log("Received message:", parsedMessage);
     } catch (error) {
       console.error("Error parsing or validating message:", error);
-      setConnectionError("Failed to parse or validate message");
     }
   }, []);
 

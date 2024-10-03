@@ -19,19 +19,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { PRICING } from "@/lib/constants";
-import { scrapeSchema } from "@/schemas";
-import { ScrapeSchema, ScrapingResult } from "@/types";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { Eye, EyeOff, Info, Loader2, X } from "lucide-react";
-import { useState } from "react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useClipboard } from "@/hooks/useClipboard";
+import { PRICING } from "@/lib/constants";
+import { secureStorage } from "@/lib/secure-storage";
+import { scrapeSchema } from "@/schemas";
+import { ScrapeSchema, ScrapingResult } from "@/types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Check, Copy, Eye, EyeOff, Info, Loader2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 
 interface Props {
   clearResults: () => void;
@@ -40,8 +42,11 @@ interface Props {
   isPending: boolean;
 }
 
+const API_KEY_STORAGE_KEY = "gemini_api_key";
+
 const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
   const [showApiKey, setShowApiKey] = useState(false);
+  const { copyToClipboard, isCopied } = useClipboard();
 
   const form = useForm<ScrapeSchema>({
     resolver: zodResolver(scrapeSchema),
@@ -55,6 +60,22 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
       paginationDetails: undefined,
     },
   });
+
+  useEffect(() => {
+    const savedApiKey = secureStorage.getItem(API_KEY_STORAGE_KEY);
+    if (savedApiKey) {
+      form.setValue("apiKey", savedApiKey);
+    }
+  }, [form]);
+
+  const handleApiKeyChange = (value: string) => {
+    form.setValue("apiKey", value);
+    if (value) {
+      secureStorage.setItem(API_KEY_STORAGE_KEY, value);
+    } else {
+      secureStorage.removeItem(API_KEY_STORAGE_KEY);
+    }
+  };
 
   return (
     <div className="w-80 overflow-y-auto bg-secondary p-6">
@@ -103,7 +124,9 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                         <Info className="ml-2 h-4 w-4 text-muted-foreground" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Enter your Gemini API key here.</p>
+                        <p>
+                          Your API key is securely encrypted and stored locally.
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -114,24 +137,52 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                       type={showApiKey ? "text" : "password"}
                       placeholder="Enter your API key"
                       {...field}
+                      onChange={(e) => handleApiKeyChange(e.target.value)}
+                      className="pr-20"
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
+                    <div className="absolute right-0 top-0 flex h-full">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-full px-2 hover:bg-transparent"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                      >
+                        {showApiKey ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-full px-2 hover:bg-transparent"
+                        onClick={() => copyToClipboard(field.value)}
+                      >
+                        {isCopied ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </FormControl>
                 <FormDescription>
-                  Your API key is securely stored and never shared.
+                  Your API key is securely encrypted and stored locally.
+                  {field.value && (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="p-0 text-xs text-muted-foreground"
+                      onClick={() => handleApiKeyChange("")}
+                    >
+                      Clear API Key
+                    </Button>
+                  )}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
