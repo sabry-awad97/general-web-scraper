@@ -1,26 +1,7 @@
 import JSON5 from "json5";
 import { useCallback, useEffect, useState } from "react";
-import { z } from "zod";
 
-const createEventMessageSchema = () =>
-  z.discriminatedUnion("type", [
-    z.object({
-      type: z.literal("text"),
-      payload: z.string(),
-    }),
-    z.object({
-      type: z.literal("json"),
-      payload: z.array(
-        z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])),
-      ),
-    }),
-  ]);
-
-const EventMessageSchema = createEventMessageSchema();
-
-type EventMessage = z.infer<typeof EventMessageSchema>;
-
-type JsonPayload = Extract<EventMessage, { type: "json" }>["payload"][number];
+type JsonPayload = Record<string, string | number | boolean | null>[];
 
 export function useEventSource(url: string) {
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -30,7 +11,23 @@ export function useEventSource(url: string) {
   const handleIncomingMessage = useCallback((event: MessageEvent<string>) => {
     try {
       const parsedMessage = JSON5.parse(event.data);
-      console.log("Received message:", parsedMessage);
+      switch (parsedMessage.type) {
+        case "text": {
+          console.log("Received message:", parsedMessage.payload);
+          break;
+        }
+        case "json": {
+          const jsonPayload = JSON5.parse<JsonPayload[]>(parsedMessage.payload);
+          setReceivedJsonData(jsonPayload);
+          break;
+        }
+        default: {
+          console.warn(
+            "Received message with unknown type:",
+            parsedMessage.type,
+          );
+        }
+      }
     } catch (error) {
       console.error("Error parsing or validating message:", error);
     }
