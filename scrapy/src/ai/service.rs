@@ -21,7 +21,7 @@ impl AIService {
         })?;
 
         let client = Client::new_from_model(
-            google_generative_ai_rs::v1::gemini::Model::Gemini1_5Pro,
+            google_generative_ai_rs::v1::gemini::Model::Gemini1_5Flash,
             api_key,
         );
 
