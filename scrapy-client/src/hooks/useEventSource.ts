@@ -1,7 +1,7 @@
 import { JsonPayloadSchema } from "@/schemas";
 import { JsonPayload, MessageType } from "@/types";
 import JSON5 from "json5";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
 const MessageSchema = z.object({
@@ -9,10 +9,29 @@ const MessageSchema = z.object({
   payload: z.string(),
 });
 
-export function useEventSource(url: string) {
+interface EventSourceOptions {
+  reconnectInterval?: number;
+  maxReconnectAttempts?: number;
+  onReconnect?: () => void;
+}
+
+export function useEventSource(url: string, options: EventSourceOptions = {}) {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [receivedJsonData, setReceivedJsonData] = useState<JsonPayload>([]);
+  const [lastEventId, setLastEventId] = useState<string | null>(null);
+  const [messageHistory, setMessageHistory] = useState<
+    Array<{ type: MessageType; payload: string }>
+  >([]);
+
+  const reconnectAttemptsRef = useRef(0);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  const {
+    reconnectInterval = 5000,
+    maxReconnectAttempts = 5,
+    onReconnect,
+  } = options;
 
   const handleIncomingMessage = useCallback((event: MessageEvent<string>) => {
     try {
@@ -50,40 +69,74 @@ export function useEventSource(url: string) {
     }
   }, []);
 
-  useEffect(() => {
-    let eventSource: EventSource;
+  const reconnect = useCallback(() => {
+    if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+      setConnectionError("Max reconnection attempts reached");
+      return;
+    }
 
-    const initializeConnection = () => {
-      eventSource = new EventSource(url);
+    reconnectAttemptsRef.current += 1;
+    setTimeout(() => {
+      initializeConnection();
+      if (onReconnect) onReconnect();
+    }, reconnectInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxReconnectAttempts, reconnectInterval, onReconnect]);
 
-      eventSource.onopen = () => {
-        setIsConnected(true);
-        setConnectionError(null);
-      };
+  const initializeConnection = useCallback(() => {
+    eventSourceRef.current = new EventSource(url, { withCredentials: true });
 
-      eventSource.onmessage = handleIncomingMessage;
-
-      eventSource.onerror = (error) => {
-        console.error("EventSource failed:", error);
-        setConnectionError("Connection error");
-        setIsConnected(false);
-        eventSource.close();
-        setTimeout(initializeConnection, 5000);
-      };
+    eventSourceRef.current.onopen = () => {
+      setIsConnected(true);
+      setConnectionError(null);
+      reconnectAttemptsRef.current = 0;
     };
 
+    eventSourceRef.current.onmessage = (event: MessageEvent<string>) => {
+      handleIncomingMessage(event);
+      setLastEventId(event.lastEventId);
+      setMessageHistory((prev) => [...prev, JSON5.parse(event.data)]);
+    };
+
+    eventSourceRef.current.onerror = (error) => {
+      console.error("EventSource failed:", error);
+      setConnectionError("Connection error");
+      setIsConnected(false);
+      eventSourceRef.current?.close();
+      reconnect();
+    };
+  }, [url, handleIncomingMessage, reconnect]);
+
+  useEffect(() => {
     initializeConnection();
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
+      eventSourceRef.current?.close();
     };
-  }, [url, handleIncomingMessage]);
+  }, [initializeConnection]);
+
+  const sendMessage = useCallback((message: string) => {
+    if (
+      eventSourceRef.current &&
+      eventSourceRef.current.readyState === EventSource.OPEN
+    ) {
+      // In a real implementation, you'd need server support for this
+      console.log("Sending message:", message);
+    } else {
+      console.error("Connection not open. Unable to send message.");
+    }
+  }, []);
 
   return {
     connectionError,
     isConnected,
     receivedJsonData,
+    lastEventId,
+    messageHistory,
+    sendMessage,
+    reconnect: () => {
+      eventSourceRef.current?.close();
+      reconnect();
+    },
   };
 }
