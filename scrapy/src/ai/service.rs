@@ -21,7 +21,7 @@ impl AIService {
         })?;
 
         let client = Client::new_from_model(
-            google_generative_ai_rs::v1::gemini::Model::GeminiPro,
+            google_generative_ai_rs::v1::gemini::Model::Gemini1_5Pro,
             api_key,
         );
 
@@ -99,6 +99,7 @@ impl AIService {
             tools: vec![],
             safety_settings: vec![],
             generation_config: None,
+            system_instruction: None,
         }
     }
 

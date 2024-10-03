@@ -35,6 +35,7 @@ mod tests {
             tools: vec![],
             safety_settings: vec![],
             generation_config: None,
+            system_instruction: None,
         };
 
         let response = client.post(30, &txt_request).await?;
