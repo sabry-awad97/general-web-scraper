@@ -21,7 +21,7 @@ impl CrawlerService {
 
     pub async fn crawl(&self, params: ScrapeParams) -> Result<(), AppError> {
         self.websocket_service
-            .send_message(WebSocketMessage::text(
+            .send_message(WebSocketMessage::progress(
                 "Starting crawl process...".to_string(),
             ))
             .await?;
@@ -36,7 +36,7 @@ impl CrawlerService {
         self.crawler.crawl(spider, params).await;
 
         self.websocket_service
-            .send_message(WebSocketMessage::success("Crawl completed successfully!"))
+            .send_message(WebSocketMessage::progress("Crawl completed successfully!"))
             .await?;
         Ok(())
     }

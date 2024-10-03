@@ -1,6 +1,7 @@
 import CryptoJS from "crypto-js";
 
-const SECRET_KEY = import.meta.env.VITE_STORAGE_SECRET_KEY || "default-super-secret-key";
+const SECRET_KEY =
+  import.meta.env.VITE_STORAGE_SECRET_KEY || "default-super-secret-key";
 
 export const secureStorage = {
   setItem: (key: string, value: string) => {

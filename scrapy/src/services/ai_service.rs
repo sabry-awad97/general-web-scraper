@@ -47,21 +47,38 @@ impl AIService {
         let (tx, mut rx) = mpsc::channel(100);
 
         self.websocket_service
-            .send_message(WebSocketMessage::text("Starting AI processing..."))
+            .send_message(WebSocketMessage::progress("Starting AI processing..."))
             .await?;
 
-        let client = self.client.clone(); // Clone the client
+        let client = self.client.clone();
+        let websocket_service = self.websocket_service.clone();
         tokio::spawn(async move {
-            let response = client.post(30, &request).await.unwrap();
+            match client.post(30, &request).await {
+                Ok(response) => {
+                    info!("AI Response: {:?}", response);
 
-            if let Some(stream_response) = response.rest() {
-                if let Some(candidate) = stream_response.candidates.first() {
-                    let tx = tx.clone();
-                    if let Some(part) = candidate.content.parts.first() {
-                        if let Some(text) = part.text.as_ref() {
-                            let _ = tx.send(text.to_string()).await;
+                    if let Some(stream_response) = response.rest() {
+                        if let Some(candidate) = stream_response.candidates.first() {
+                            let tx = tx.clone();
+                            if let Some(part) = candidate.content.parts.first() {
+                                if let Some(text) = part.text.as_ref() {
+                                    let _ = tx.send(text.to_string()).await;
+                                }
+                            }
+
+                            if let Some(finish_reason) = candidate.finish_reason.as_ref() {
+                                info!("AI processing completed: {:?}", finish_reason);
+                            }
                         }
                     }
+                }
+                Err(e) => {
+                    let error_msg = format!("AI processing failed: {}", e);
+                    error!("{}", error_msg);
+                    let _ = websocket_service
+                        .send_message(WebSocketMessage::error(&error_msg))
+                        .await;
+                    let _ = tx.send(format!("ERROR: {}", e)).await;
                 }
             }
 
@@ -73,9 +90,16 @@ impl AIService {
             if chunk == "EOF_MARKER" {
                 break;
             }
+            if chunk.starts_with("ERROR:") {
+                let error_msg = chunk[7..].to_string();
+                self.websocket_service
+                    .send_message(WebSocketMessage::error(&error_msg))
+                    .await?;
+                return Err(AppError::AI(error_msg));
+            }
             full_response.push_str(&chunk);
             self.websocket_service
-                .send_message(WebSocketMessage::text(&chunk))
+                .send_message(WebSocketMessage::scraping_result(&chunk))
                 .await?;
         }
 
@@ -84,15 +108,29 @@ impl AIService {
             full_response.len()
         );
 
-        let parsed_response = self.parse_ai_response(&full_response)?;
+        match self.parse_ai_response(&full_response) {
+            Ok(parsed_response) => {
+                info!("Successfully extracted {} items", parsed_response.len());
 
-        info!("Successfully extracted {} items", parsed_response.len());
+                self.websocket_service
+                    .send_message(WebSocketMessage::progress("AI processing completed"))
+                    .await?;
 
-        self.websocket_service
-            .send_message(WebSocketMessage::text("AI processing completed"))
-            .await?;
+                self.websocket_service
+                    .send_message(WebSocketMessage::success(&parsed_response))
+                    .await?;
 
-        Ok(parsed_response)
+                Ok(parsed_response)
+            }
+            Err(e) => {
+                let error_msg = format!("Failed to parse AI response: {}", e);
+                error!("{}", error_msg);
+                self.websocket_service
+                    .send_message(WebSocketMessage::error(&error_msg))
+                    .await?;
+                Err(e)
+            }
+        }
     }
 
     fn build_prompt(&self, html: &str, params: &ScrapeParams) -> String {
@@ -136,7 +174,7 @@ impl AIService {
                 top_p: None,
                 top_k: None,
                 candidate_count: None,
-                max_output_tokens: Some(4096),
+                max_output_tokens: Some(8192),
                 stop_sequences: None,
                 response_mime_type: Some("application/json".to_string()),
             }),
@@ -151,8 +189,9 @@ impl AIService {
     fn parse_ai_response(&self, response: &str) -> Result<Vec<serde_json::Value>, AppError> {
         debug!("Parsing AI response");
         serde_json::from_str(response).map_err(|e| {
-            error!("Failed to parse AI response: {}", e);
-            AppError::AI(format!("Failed to parse AI response: {}", e))
+            let error_msg = format!("Failed to parse AI response: {}", e);
+            error!("{}", error_msg);
+            AppError::AI(e.to_string())
         })
     }
 }

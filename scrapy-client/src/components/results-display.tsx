@@ -90,7 +90,7 @@ export default function ResultsDisplay({
             </Table>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
-          <div className="flex gap-2 mt-2">
+          <div className="mt-2 flex gap-2">
             <Button onClick={() => alert("Downloading Pagination JSON...")}>
               Download Pagination JSON
             </Button>
@@ -101,7 +101,7 @@ export default function ResultsDisplay({
         </section>
       )}
 
-      <Card className="text-white bg-white/10">
+      <Card className="bg-white/10 text-white">
         <CardHeader>
           <CardTitle>Output Details</CardTitle>
         </CardHeader>

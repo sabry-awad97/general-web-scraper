@@ -89,16 +89,16 @@ impl Spider for GenericSpider {
     }
 
     async fn process(&self, item: Self::Item) -> Result<(), Self::Error> {
+        self.websocket_service
+            .send_message(WebSocketMessage::raw(&item))
+            .await?;
+
         if self.scrape_params.enable_scraping {
-            let extracted_items = self
-                .ai_service
+            self.ai_service
                 .extract_items(&item, &self.scrape_params)
                 .await?;
-
-            self.websocket_service
-                .send_message(WebSocketMessage::json(&extracted_items))
-                .await?;
         }
+
         Ok(())
     }
 }

@@ -18,16 +18,30 @@ export function useEventSource(url: string) {
     try {
       const parsedMessage = MessageSchema.parse(JSON5.parse(event.data));
 
+      console.log("Received message:", parsedMessage.type);
+
       switch (parsedMessage.type) {
-        case "text": {
-          console.log("Received message:", parsedMessage.payload);
-          break;
-        }
-        case "json": {
+        case MessageType.Success: {
           const jsonPayload = JsonPayloadSchema.parse(
             JSON5.parse(parsedMessage.payload),
           );
           setReceivedJsonData(jsonPayload);
+          break;
+        }
+        case MessageType.Progress: {
+          console.log("Received progress:", parsedMessage.payload);
+          break;
+        }
+        case MessageType.Error: {
+          console.error("Received error:", parsedMessage.payload);
+          break;
+        }
+        case MessageType.Warning: {
+          console.warn("Received warning:", parsedMessage.payload);
+          break;
+        }
+        case MessageType.Raw: {
+          console.log("Received raw:", parsedMessage.payload);
           break;
         }
       }

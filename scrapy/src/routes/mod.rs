@@ -175,7 +175,7 @@ pub async fn crawl(
 
     let start_message = format!("Crawling started for {}", params.url);
     match websocket_service
-        .send_message(WebSocketMessage::text(start_message.clone()))
+        .send_message(WebSocketMessage::progress(start_message.clone()))
         .await
     {
         Ok(_) => log::info!("Successfully sent crawl start message: {}", start_message),
@@ -193,7 +193,7 @@ pub async fn crawl(
         Ok(_) => {
             let success_message = format!("Crawling completed for {}", params.url);
             match websocket_service
-                .send_message(WebSocketMessage::text(success_message.clone()))
+                .send_message(WebSocketMessage::progress(success_message.clone()))
                 .await
             {
                 Ok(_) => {
