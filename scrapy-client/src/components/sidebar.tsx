@@ -133,8 +133,8 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
 
   return (
     <ScrollArea className="h-screen w-[24rem]">
-      <div className="bg-gradient-to-b from-secondary to-background p-6">
-        <div className="mb-8 flex items-center space-x-4">
+      <div className="p-6 bg-gradient-to-b from-secondary to-background">
+        <div className="flex items-center mb-8 space-x-4">
           <svg
             width="40"
             height="40"
@@ -165,7 +165,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
               strokeLinejoin="round"
             />
           </svg>
-          <h1 className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-2xl font-bold text-transparent">
+          <h1 className="text-2xl font-bold text-transparent bg-gradient-to-r from-primary to-secondary bg-clip-text">
             Scraper Settings
           </h1>
         </div>
@@ -212,7 +212,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="ml-2 h-4 w-4 text-muted-foreground" />
+                          <Info className="w-4 h-4 ml-2 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>
@@ -236,7 +236,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                         )}
                         disabled={isApiKeyLocked}
                       />
-                      <div className="absolute right-0 top-0 flex h-full">
+                      <div className="absolute top-0 right-0 flex h-full">
                         <ApiKeyActions
                           showApiKey={showApiKey}
                           setShowApiKey={setShowApiKey}
@@ -292,7 +292,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
               control={form.control}
               name="enableScraping"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+                <FormItem className="flex flex-row items-center justify-between p-4 transition-all duration-300 border rounded-lg shadow-sm hover:shadow-md">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base font-semibold">
                       Enable Scraping
@@ -342,16 +342,16 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                             className="transition-all duration-300"
                           />
                         </FormControl>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 mt-2">
                           {field.value?.map((tag, index) => (
                             <Badge
                               key={index}
                               variant="secondary"
-                              className="flex cursor-pointer items-center transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
+                              className="flex items-center transition-all duration-300 cursor-pointer hover:bg-primary hover:text-primary-foreground"
                             >
                               {tag}
                               <X
-                                className="ml-1 h-3 w-3"
+                                className="w-3 h-3 ml-1"
                                 onClick={() => {
                                   field.onChange(
                                     field.value?.filter((t) => t !== tag),
@@ -374,7 +374,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
               control={form.control}
               name="enablePagination"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+                <FormItem className="flex flex-row items-center justify-between p-4 transition-all duration-300 border rounded-lg shadow-sm hover:shadow-md">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base font-semibold">
                       Enable Pagination
@@ -433,7 +433,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
             >
               {isPending ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Scraping...
                 </>
               ) : (
@@ -445,7 +445,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
 
         {/* Clear Results Button */}
         <Button
-          className="mt-4 w-full transition-all duration-300"
+          className="w-full mt-4 transition-all duration-300"
           variant="outline"
           onClick={() => {
             clearResults();
@@ -455,40 +455,8 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
           Clear Results
         </Button>
 
-        {/* Scraping Summary */}
-        <AnimatePresence>
-          {results && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Card className="mt-6 overflow-hidden">
-                <CardHeader className="bg-primary text-primary-foreground">
-                  <CardTitle>Scraping Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 p-4">
-                  <SummaryItem
-                    label="Input Tokens"
-                    value={results.inputTokens.toString()}
-                  />
-                  <SummaryItem
-                    label="Output Tokens"
-                    value={results.outputTokens.toString()}
-                  />
-                  <SummaryItem
-                    label="Total Cost"
-                    value={`$${results.totalCost.toFixed(4)}`}
-                  />
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Scrolling indicator */}
-        <div className="mt-8 flex justify-center">
+        {/* Scrolling indicator - Moved here */}
+        <div className="flex justify-center mt-8">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -505,7 +473,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                 repeat: Infinity,
                 repeatType: "loop",
               }}
-              className="mt-2 flex justify-center"
+              className="flex justify-center mt-2"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -524,6 +492,38 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
             </motion.div>
           </motion.div>
         </div>
+
+        {/* Scraping Summary */}
+        <AnimatePresence>
+          {results && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="mt-6 overflow-hidden">
+                <CardHeader className="bg-primary text-primary-foreground">
+                  <CardTitle>Scraping Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-2">
+                  <SummaryItem
+                    label="Input Tokens"
+                    value={results.inputTokens.toString()}
+                  />
+                  <SummaryItem
+                    label="Output Tokens"
+                    value={results.outputTokens.toString()}
+                  />
+                  <SummaryItem
+                    label="Total Cost"
+                    value={`$${results.totalCost.toFixed(4)}`}
+                  />
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Lock/Unlock Dialog */}
@@ -561,9 +561,9 @@ const ApiKeyActions = ({
     <IconButton
       icon={
         showApiKey ? (
-          <EyeOff className="h-4 w-4" />
+          <EyeOff className="w-4 h-4" />
         ) : (
-          <Eye className="h-4 w-4" />
+          <Eye className="w-4 h-4" />
         )
       }
       onClick={() => setShowApiKey(!showApiKey)}
@@ -572,9 +572,9 @@ const ApiKeyActions = ({
     <IconButton
       icon={
         isCopied ? (
-          <Check className="h-4 w-4 text-green-500" />
+          <Check className="w-4 h-4 text-green-500" />
         ) : (
-          <Copy className="h-4 w-4" />
+          <Copy className="w-4 h-4" />
         )
       }
       onClick={copyToClipboard}
@@ -583,9 +583,9 @@ const ApiKeyActions = ({
     <IconButton
       icon={
         isApiKeyLocked ? (
-          <Lock className="h-4 w-4" />
+          <Lock className="w-4 h-4" />
         ) : (
-          <Unlock className="h-4 w-4" />
+          <Unlock className="w-4 h-4" />
         )
       }
       onClick={() => setShowLockDialog(true)}
