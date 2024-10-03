@@ -20,6 +20,12 @@ impl CrawlerService {
     }
 
     pub async fn crawl(&self, params: ScrapeParams) -> Result<(), AppError> {
+        self.websocket_service
+            .send_message(WebSocketMessage::text(
+                "Starting crawl process...".to_string(),
+            ))
+            .await?;
+
         let selectors = vec!["body"];
         let spider = Arc::new(GenericSpider::new(
             selectors,
