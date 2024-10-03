@@ -4,7 +4,7 @@ use google_generative_ai_rs::v1::{
     api::Client,
     gemini::{
         request::{GenerationConfig, Request, SystemInstructionContent, SystemInstructionPart},
-        Content, Part, ResponseType, Role,
+        Content, Part, Role,
     },
 };
 use log::{debug, error, info};
@@ -23,10 +23,9 @@ impl AIService {
     pub fn new(api_key: &str, websocket_service: Arc<WebSocketService>) -> Result<Self, AppError> {
         debug!("Initializing AIService");
 
-        let client = Client::new_from_model_response_type(
+        let client = Client::new_from_model(
             google_generative_ai_rs::v1::gemini::Model::Gemini1_5Flash,
             api_key.to_string(),
-            ResponseType::StreamGenerateContent,
         );
 
         info!("AIService initialized successfully");
@@ -55,24 +54,14 @@ impl AIService {
         tokio::spawn(async move {
             let response = client.post(30, &request).await.unwrap();
 
-            if let Some(stream_response) = response.streamed() {
-                if let Some(json_stream) = stream_response.response_stream {
-                    Client::for_each_async(json_stream, {
-                        let tx = tx.clone();
-                        move |response| {
-                            let tx = tx.clone();
-                            async move {
-                                if let Some(candidate) = response.candidates.first() {
-                                    if let Some(part) = candidate.content.parts.first() {
-                                        if let Some(text) = part.text.as_ref() {
-                                            let _ = tx.send(text.to_string()).await;
-                                        }
-                                    }
-                                }
-                            }
+            if let Some(stream_response) = response.rest() {
+                if let Some(candidate) = stream_response.candidates.first() {
+                    let tx = tx.clone();
+                    if let Some(part) = candidate.content.parts.first() {
+                        if let Some(text) = part.text.as_ref() {
+                            let _ = tx.send(text.to_string()).await;
                         }
-                    })
-                    .await;
+                    }
                 }
             }
 
