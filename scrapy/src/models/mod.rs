@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Serialize)]
 pub struct CrawlResponse {
@@ -54,7 +53,6 @@ pub enum EventType {
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WebSocketMessage {
-    pub id: Uuid,
     #[serde(rename = "type")]
     pub r#type: EventType,
     pub payload: String,
@@ -63,7 +61,6 @@ pub struct WebSocketMessage {
 impl WebSocketMessage {
     pub fn new_text(payload: String) -> Self {
         Self {
-            id: Uuid::new_v4(),
             r#type: EventType::Text,
             payload,
         }
@@ -75,7 +72,6 @@ impl WebSocketMessage {
     {
         let json = serde_json::to_string_pretty(value).unwrap_or_default();
         Self {
-            id: Uuid::new_v4(),
             r#type: EventType::Json,
             payload: json,
         }

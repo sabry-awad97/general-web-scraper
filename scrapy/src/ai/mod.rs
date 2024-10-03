@@ -1,12 +1,8 @@
-mod service;
-
-pub use service::AIService;
-
 #[cfg(test)]
 mod tests {
     use google_generative_ai_rs::v1::{
         api::Client,
-        gemini::{request::Request, Content, Model, Part, Role, ResponseType},
+        gemini::{request::Request, Content, Model, Part, ResponseType, Role},
     };
 
     #[tokio::test]

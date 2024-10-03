@@ -22,8 +22,8 @@ import { ScrapeSchema, ScrapingResult } from "./types";
 
 function App() {
   const {
-    jsonMessages,
-    error: eventSourceErrorMessage,
+    receivedJsonData,
+    connectionError,
     isConnected,
   } = useEventSource("/api/events");
 
@@ -93,8 +93,8 @@ function App() {
 
   if (!isConnected) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin" />
         <span className="ml-2 text-lg">Connecting to server...</span>
       </div>
     );
@@ -111,19 +111,19 @@ function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 p-4 overflow-auto">
         <h1 className="mb-4 text-3xl font-bold">Universal Web Scraper 🦑</h1>
 
-        {eventSourceErrorMessage && (
+        {connectionError && (
           <Alert variant="destructive" className="mb-4">
-            <WifiOff className="h-4 w-4" />
+            <WifiOff className="w-4 h-4" />
             <AlertTitle>Connection Error</AlertTitle>
             <AlertDescription>
               Unable to connect to the event source. Please check your internet
               connection and try again.
-              {eventSourceErrorMessage && (
-                <span className="mt-2 block text-sm opacity-75">
-                  Error details: {eventSourceErrorMessage}
+              {connectionError && (
+                <span className="block mt-2 text-sm opacity-75">
+                  Error details: {connectionError}
                 </span>
               )}
             </AlertDescription>
@@ -132,7 +132,7 @@ function App() {
 
         {isPending && (
           <Alert className="mb-4">
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" />
             <AlertTitle>Scraping in progress</AlertTitle>
             <AlertDescription>
               Please wait while we fetch your data. This may take a few moments.
@@ -142,7 +142,7 @@ function App() {
 
         {isError && (
           <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="w-4 h-4" />
             <AlertTitle>Scraping Failed</AlertTitle>
             <AlertDescription>
               {crawlError?.message ||
@@ -153,7 +153,7 @@ function App() {
 
         {performScrape && results && (
           <Alert variant="default" className="mb-4">
-            <CheckCircle className="h-4 w-4" />
+            <CheckCircle className="w-4 h-4" />
             <AlertTitle>Scraping Completed</AlertTitle>
             <AlertDescription>
               Your data has been successfully scraped and processed.
@@ -168,14 +168,14 @@ function App() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {jsonMessages[0] &&
-                      Object.keys(jsonMessages[0]).map((key) => (
+                    {receivedJsonData[0] &&
+                      Object.keys(receivedJsonData[0]).map((key) => (
                         <TableHead key={key}>{key}</TableHead>
                       ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {jsonMessages.map((item, index) => (
+                  {receivedJsonData.map((item, index) => (
                     <TableRow key={index}>
                       {Object.values(item).map((value, valueIndex) => (
                         <TableCell key={valueIndex}>{value}</TableCell>
@@ -187,7 +187,7 @@ function App() {
             </ScrollArea>
 
             <h2 className="mt-4 text-2xl font-semibold">Download Options</h2>
-            <div className="mt-2 flex gap-2">
+            <div className="flex gap-2 mt-2">
               <Button onClick={() => alert("Downloading JSON...")}>
                 Download JSON
               </Button>
@@ -217,7 +217,7 @@ function App() {
                     </TableBody>
                   </Table>
                 </ScrollArea>
-                <div className="mt-2 flex gap-2">
+                <div className="flex gap-2 mt-2">
                   <Button
                     onClick={() => alert("Downloading Pagination JSON...")}
                   >

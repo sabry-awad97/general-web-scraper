@@ -7,9 +7,9 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
-    ai::AIService,
     error::AppError,
     models::{ScrapeParams, WebSocketMessage},
+    services::AIService,
 };
 
 #[async_trait]
@@ -23,17 +23,9 @@ pub trait Spider: Send + Sync {
     async fn process(&self, item: Self::Item) -> Result<(), Self::Error>;
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct GenericItem {
-    pub url: String,
-    pub title: Option<String>,
-    pub content: Option<String>,
-}
-
 pub struct GenericSpider {
     http_client: Client,
     selectors: Vec<Selector>,
-    urls: Vec<String>,
     websocket_tx: Option<mpsc::Sender<WebSocketMessage>>,
     ai_service: AIService,
     scrape_params: ScrapeParams,
@@ -42,7 +34,6 @@ pub struct GenericSpider {
 impl GenericSpider {
     pub fn new(
         selectors: Vec<&str>,
-        urls: Vec<String>,
         websocket_tx: Option<mpsc::Sender<WebSocketMessage>>,
         scrape_params: ScrapeParams,
     ) -> Result<Self, AppError> {
@@ -62,7 +53,6 @@ impl GenericSpider {
         Ok(Self {
             http_client,
             selectors,
-            urls,
             websocket_tx,
             ai_service,
             scrape_params,
@@ -72,7 +62,7 @@ impl GenericSpider {
 
 #[async_trait]
 impl Spider for GenericSpider {
-    type Item = GenericItem;
+    type Item = String;
     type Error = AppError;
 
     fn name(&self) -> String {
@@ -80,7 +70,7 @@ impl Spider for GenericSpider {
     }
 
     fn start_urls(&self) -> Vec<String> {
-        self.urls.clone()
+        vec![self.scrape_params.url.clone()]
     }
 
     async fn scrape(&self, url: String) -> Result<(Vec<Self::Item>, Vec<String>), Self::Error> {
@@ -92,14 +82,7 @@ impl Spider for GenericSpider {
 
         for selector in &self.selectors {
             for element in document.select(selector) {
-                let title = element.value().attr("title").map(String::from);
-                let content = Some(element.inner_html());
-
-                items.push(GenericItem {
-                    url: url.clone(),
-                    title,
-                    content,
-                });
+                items.push(element.inner_html());
             }
         }
 
@@ -108,17 +91,13 @@ impl Spider for GenericSpider {
 
     async fn process(&self, item: Self::Item) -> Result<(), Self::Error> {
         if self.scrape_params.enable_scraping {
-            if let Some(content) = item.content.as_ref() {
-                let extracted_items = self
-                    .ai_service
-                    .extract_items(content, &self.scrape_params)
-                    .await?;
+            let extracted_items = self
+                .ai_service
+                .extract_items(&item, &self.scrape_params)
+                .await?;
 
-                for extracted_item in extracted_items {
-                    if let Some(tx) = &self.websocket_tx {
-                        let _ = tx.send(WebSocketMessage::new_json(&extracted_item)).await;
-                    }
-                }
+            if let Some(tx) = &self.websocket_tx {
+                let _ = tx.send(WebSocketMessage::new_json(&extracted_items)).await;
             }
         }
         Ok(())
