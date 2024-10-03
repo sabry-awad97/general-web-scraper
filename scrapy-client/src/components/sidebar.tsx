@@ -31,9 +31,10 @@ import { secureStorage } from "@/lib/secure-storage";
 import { scrapeSchema } from "@/schemas";
 import { ScrapeSchema, ScrapingResult } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Copy, Eye, EyeOff, Info, Loader2, X } from "lucide-react";
+import { Check, Copy, Eye, EyeOff, Info, Loader2, X, Lock, Unlock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface Props {
   clearResults: () => void;
@@ -43,9 +44,13 @@ interface Props {
 }
 
 const API_KEY_STORAGE_KEY = "gemini_api_key";
+const API_KEY_LOCK_PASSWORD_STORAGE_KEY = "gemini_api_key_lock_password";
 
 const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
   const [showApiKey, setShowApiKey] = useState(false);
+  const [isApiKeyLocked, setIsApiKeyLocked] = useState(false);
+  const [showLockDialog, setShowLockDialog] = useState(false);
+  const [lockPassword, setLockPassword] = useState("");
   const { copyToClipboard, isCopied } = useClipboard();
 
   const form = useForm<ScrapeSchema>({
@@ -77,8 +82,29 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
     }
   };
 
+  const handleLockApiKey = () => {
+    if (lockPassword) {
+      // In a real implementation, you'd want to hash the password and store it securely
+      secureStorage.setItem(API_KEY_LOCK_PASSWORD_STORAGE_KEY, lockPassword);
+      setIsApiKeyLocked(true);
+      setShowLockDialog(false);
+      setLockPassword("");
+    }
+  };
+
+  const handleUnlockApiKey = () => {
+    if (lockPassword === secureStorage.getItem(API_KEY_LOCK_PASSWORD_STORAGE_KEY)) {
+      setIsApiKeyLocked(false);
+      setShowLockDialog(false);
+      setLockPassword("");
+    } else {
+      // Show an error message (you might want to add a state for this)
+      console.error("Incorrect password");
+    }
+  };
+
   return (
-    <div className="w-80 overflow-y-auto bg-secondary p-6">
+    <div className="p-6 overflow-y-auto w-[24rem] bg-secondary">
       <h2 className="mb-6 text-2xl font-bold">Scraper Settings</h2>
 
       <Form {...form}>
@@ -121,7 +147,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Info className="ml-2 h-4 w-4 text-muted-foreground" />
+                        <Info className="w-4 h-4 ml-2 text-muted-foreground" />
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>
@@ -138,20 +164,22 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                       placeholder="Enter your API key"
                       {...field}
                       onChange={(e) => handleApiKeyChange(e.target.value)}
-                      className="pr-20"
+                      className="pr-28"
+                      disabled={isApiKeyLocked}
                     />
-                    <div className="absolute right-0 top-0 flex h-full">
+                    <div className="absolute top-0 right-0 flex h-full">
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         className="h-full px-2 hover:bg-transparent"
                         onClick={() => setShowApiKey(!showApiKey)}
+                        disabled={isApiKeyLocked}
                       >
                         {showApiKey ? (
-                          <EyeOff className="h-4 w-4" />
+                          <EyeOff className="w-4 h-4" />
                         ) : (
-                          <Eye className="h-4 w-4" />
+                          <Eye className="w-4 h-4" />
                         )}
                       </Button>
                       <Button
@@ -160,11 +188,25 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                         size="sm"
                         className="h-full px-2 hover:bg-transparent"
                         onClick={() => copyToClipboard(field.value)}
+                        disabled={isApiKeyLocked}
                       >
                         {isCopied ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <Check className="w-4 h-4 text-green-500" />
                         ) : (
-                          <Copy className="h-4 w-4" />
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-full px-2 hover:bg-transparent"
+                        onClick={() => setShowLockDialog(true)}
+                      >
+                        {isApiKeyLocked ? (
+                          <Lock className="w-4 h-4" />
+                        ) : (
+                          <Unlock className="w-4 h-4" />
                         )}
                       </Button>
                     </div>
@@ -172,7 +214,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                 </FormControl>
                 <FormDescription>
                   Your API key is securely encrypted and stored locally.
-                  {field.value && (
+                  {field.value && !isApiKeyLocked && (
                     <Button
                       type="button"
                       variant="link"
@@ -208,7 +250,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
             control={form.control}
             name="enableScraping"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">Enable Scraping</FormLabel>
                   <FormDescription>Specify fields to extract</FormDescription>
@@ -245,16 +287,16 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                       }}
                     />
                   </FormControl>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mt-2">
                     {field.value?.map((tag, index) => (
                       <Badge
                         key={index}
                         variant="secondary"
-                        className="flex cursor-pointer items-center"
+                        className="flex items-center cursor-pointer"
                       >
                         {tag}
                         <X
-                          className="ml-1 h-3 w-3"
+                          className="w-3 h-3 ml-1"
                           onClick={() => {
                             field.onChange(
                               field.value?.filter((t) => t !== tag),
@@ -274,7 +316,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
             control={form.control}
             name="enablePagination"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">Enable Pagination</FormLabel>
                   <FormDescription>Specify pagination details</FormDescription>
@@ -311,7 +353,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Scraping...
               </>
             ) : (
@@ -322,7 +364,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
       </Form>
 
       <Button
-        className="mt-4 w-full"
+        className="w-full mt-4"
         variant="outline"
         onClick={() => {
           clearResults();
@@ -355,6 +397,28 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={showLockDialog} onOpenChange={setShowLockDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isApiKeyLocked ? "Unlock API Key" : "Lock API Key"}</DialogTitle>
+          </DialogHeader>
+          <Input
+            type="password"
+            placeholder={isApiKeyLocked ? "Enter password to unlock" : "Set a password to lock"}
+            value={lockPassword}
+            onChange={(e) => setLockPassword(e.target.value)}
+          />
+          <DialogFooter>
+            <Button onClick={() => setShowLockDialog(false)} variant="outline">
+              Cancel
+            </Button>
+            <Button onClick={isApiKeyLocked ? handleUnlockApiKey : handleLockApiKey}>
+              {isApiKeyLocked ? "Unlock" : "Lock"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
