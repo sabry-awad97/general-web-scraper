@@ -5,9 +5,8 @@ export type ScrapeSchema = z.infer<typeof scrapeSchema>;
 
 export interface ScrapingResult {
   allData: {
-    id: number;
-    title: string;
-    price: string;
+    id: string;
+    [key: string]: string | number | boolean | null;
   }[];
   inputTokens: number;
   outputTokens: number;

@@ -6,7 +6,7 @@ pub use service::AIService;
 mod tests {
     use google_generative_ai_rs::v1::{
         api::Client,
-        gemini::{request::Request, Content, Model, Part, Role},
+        gemini::{request::Request, Content, Model, Part, Role, ResponseType},
     };
 
     #[tokio::test]
@@ -14,9 +14,10 @@ mod tests {
         dotenvy::dotenv().ok();
 
         // Either run as a standard text request or a stream generate content request
-        let client = Client::new_from_model(
+        let client = Client::new_from_model_response_type(
             Model::GeminiPro,
             std::env::var("GEMINI_API_KEY").unwrap().to_string(),
+            ResponseType::StreamGenerateContent,
         );
 
         let prompt = r#"Give me a recipe for banana bread."#.to_string();

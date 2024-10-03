@@ -32,9 +32,9 @@ function App() {
 
     const mockResults = {
       allData: [
-        { id: 1, title: "Item 1", price: "$10.99" },
-        { id: 2, title: "Item 2", price: "$15.99" },
-        { id: 3, title: "Item 3", price: "$20.99" },
+        { id: "1", title: "Item 1", price: "$10.99" },
+        { id: "2", title: "Item 2", price: "$15.99" },
+        { id: "3", title: "Item 3", price: "$20.99" },
       ],
       inputTokens: 1000,
       outputTokens: 500,
@@ -85,7 +85,7 @@ function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 p-4 overflow-auto">
+      <div className="flex-1 overflow-auto p-4">
         <h1 className="mb-4 text-3xl font-bold">Universal Web Scraper 🦑</h1>
 
         {performScrape && results ? (
@@ -95,9 +95,10 @@ function App() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {Object.keys(results.allData[0]).map((key) => (
-                      <TableHead key={key}>{key}</TableHead>
-                    ))}
+                    {results.allData[0] &&
+                      Object.keys(results.allData[0]).map((key) => (
+                        <TableHead key={key}>{key}</TableHead>
+                      ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -113,7 +114,7 @@ function App() {
             </ScrollArea>
 
             <h2 className="mt-4 text-2xl font-semibold">Download Options</h2>
-            <div className="flex gap-2 mt-2">
+            <div className="mt-2 flex gap-2">
               <Button onClick={() => alert("Downloading JSON...")}>
                 Download JSON
               </Button>
@@ -143,7 +144,7 @@ function App() {
                     </TableBody>
                   </Table>
                 </ScrollArea>
-                <div className="flex gap-2 mt-2">
+                <div className="mt-2 flex gap-2">
                   <Button
                     onClick={() => alert("Downloading Pagination JSON...")}
                   >

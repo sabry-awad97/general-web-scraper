@@ -1,8 +1,6 @@
-use std::io::{stdout, Write};
-
 use google_generative_ai_rs::v1::{
     api::Client,
-    gemini::{request::Request, response::GeminiResponse, Content, Part, ResponseType, Role},
+    gemini::{request::Request, Content, Part, Role},
 };
 use log::{debug, error, info};
 
@@ -22,10 +20,9 @@ impl AIService {
             AppError::MissingAPIKey("GEMINI_API_KEY".to_string())
         })?;
 
-        let client = Client::new_from_model_response_type(
+        let client = Client::new_from_model(
             google_generative_ai_rs::v1::gemini::Model::GeminiPro,
             api_key,
-            ResponseType::StreamGenerateContent,
         );
 
         info!("AIService initialized successfully");
@@ -46,31 +43,18 @@ impl AIService {
             AppError::AIError(e.to_string())
         })?;
 
-        let message = std::sync::Arc::new(std::sync::Mutex::new(String::from("\n")));
+        let mut message = String::new();
 
-        if let Some(stream_response) = response.streamed() {
-            if let Some(json_stream) = stream_response.response_stream {
-                let message_clone = message.clone();
-                Client::for_each_async(json_stream, move |response: GeminiResponse| {
-                    let message_clone = message_clone.clone();
-                    async move {
-                        if let Some(part) = response.candidates.first() {
-                            if let Some(text) = part.content.parts.first() {
-                                if let Some(text) = text.text.as_ref() {
-                                    let mut message = message_clone.lock().unwrap();
-                                    message.push_str(text);
-                                    print!("{}", text);
-                                    stdout().flush().unwrap();
-                                }
-                            }
-                        }
+        if let Some(response) = response.rest() {
+            if let Some(candidate) = response.candidates.first() {
+                if let Some(part) = candidate.content.parts.first() {
+                    if let Some(text) = part.text.as_ref() {
+                        info!("{}", text);
+                        message.push_str(text);
                     }
-                })
-                .await;
+                }
             }
         }
-
-        let message = message.lock().unwrap().clone();
 
         debug!("AI response received, length: {} characters", message.len());
 
