@@ -24,14 +24,16 @@ import { scrapeSchema } from "@/schemas";
 import { ScrapeSchema, ScrapingResult } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { Loader2, X } from "lucide-react";
 
 interface Props {
   clearResults: () => void;
   results: ScrapingResult | null;
   onSubmit: (data: ScrapeSchema) => void;
+  isPending: boolean;
 }
 
-const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
+const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
   const form = useForm<ScrapeSchema>({
     resolver: zodResolver(scrapeSchema),
     defaultValues: {
@@ -45,11 +47,11 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
   });
 
   return (
-    <div className="w-64 p-4 bg-secondary">
-      <h2 className="mb-4 text-2xl font-bold">Web Scraper Settings</h2>
+    <div className="p-6 overflow-y-auto w-80 bg-secondary">
+      <h2 className="mb-6 text-2xl font-bold">Scraper Settings</h2>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
             control={form.control}
             name="model"
@@ -85,7 +87,7 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
               <FormItem>
                 <FormLabel>URL</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter URL" {...field} />
+                  <Input placeholder="https://example.com" {...field} />
                 </FormControl>
                 <FormDescription>Enter the URL to scrape</FormDescription>
                 <FormMessage />
@@ -101,7 +103,7 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">Enable Scraping</FormLabel>
                   <FormDescription>
-                    Turn on to specify fields to extract
+                    Specify fields to extract
                   </FormDescription>
                 </div>
                 <FormControl>
@@ -123,8 +125,8 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
                   <FormLabel>Fields to Extract</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Press enter to add a field"
-                      onKeyPress={(e) => {
+                      placeholder="Add field and press Enter"
+                      onKeyDown={(e) => {
                         if (e.key === "Enter" && e.currentTarget.value) {
                           e.preventDefault();
                           field.onChange([
@@ -141,12 +143,15 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
                       <Badge
                         key={index}
                         variant="secondary"
-                        className="cursor-pointer"
-                        onClick={() => {
-                          field.onChange(field.value?.filter((t) => t !== tag));
-                        }}
+                        className="flex items-center cursor-pointer"
                       >
-                        {tag} ×
+                        {tag}
+                        <X
+                          className="w-3 h-3 ml-1"
+                          onClick={() => {
+                            field.onChange(field.value?.filter((t) => t !== tag));
+                          }}
+                        />
                       </Badge>
                     ))}
                   </div>
@@ -164,7 +169,7 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">Enable Pagination</FormLabel>
                   <FormDescription>
-                    Turn on to specify pagination details
+                    Specify pagination details
                   </FormDescription>
                 </div>
                 <FormControl>
@@ -185,7 +190,7 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
                 <FormItem>
                   <FormLabel>Pagination Details</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter Pagination Details" {...field} />
+                    <Input placeholder="E.g., Next button selector" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -193,14 +198,21 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
             />
           )}
 
-          <Button type="submit" className="w-full">
-            Scrape
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Scraping...
+              </>
+            ) : (
+              "Start Scraping"
+            )}
           </Button>
         </form>
       </Form>
 
       <Button
-        className="w-full mt-2"
+        className="w-full mt-4"
         variant="outline"
         onClick={() => {
           clearResults();
@@ -211,14 +223,23 @@ const Sidebar = ({ clearResults, results, onSubmit }: Props) => {
       </Button>
 
       {results && (
-        <Card className="mt-4">
+        <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Scraping Details</CardTitle>
+            <CardTitle>Scraping Summary</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p>Input Tokens: {results.inputTokens}</p>
-            <p>Output Tokens: {results.outputTokens}</p>
-            <p>Total Cost: ${results.totalCost.toFixed(4)}</p>
+          <CardContent className="space-y-2">
+            <div className="flex justify-between">
+              <span>Input Tokens:</span>
+              <span className="font-semibold">{results.inputTokens}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Output Tokens:</span>
+              <span className="font-semibold">{results.outputTokens}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Total Cost:</span>
+              <span className="font-semibold">${results.totalCost.toFixed(4)}</span>
+            </div>
           </CardContent>
         </Card>
       )}

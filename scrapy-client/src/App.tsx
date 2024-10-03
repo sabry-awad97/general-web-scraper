@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,7 +10,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import confetti from "canvas-confetti";
+import { AlertCircle, CheckCircle, Loader2, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import Sidebar from "./components/sidebar";
 import { useCrawl } from "./hooks/useCrawl";
 import { useEventSource } from "./hooks/useEventSource";
@@ -17,39 +21,65 @@ import { PRICING } from "./lib/constants";
 import { ScrapeSchema, ScrapingResult } from "./types";
 
 function App() {
-  const { jsonMessages, error, isConnected } = useEventSource("/api/events");
+  const {
+    jsonMessages,
+    error: eventSourceErrorMessage,
+    isConnected,
+  } = useEventSource("/api/events");
 
   const [results, setResults] = useState<ScrapingResult | null>(null);
   const [performScrape, setPerformScrape] = useState(false);
-  const { mutateAsync: crawl } = useCrawl();
+  const {
+    mutateAsync: crawl,
+    isPending,
+    isError,
+    error: crawlError,
+  } = useCrawl();
 
   const onSubmit = async (values: ScrapeSchema) => {
     setPerformScrape(true);
 
-    await crawl(values);
+    try {
+      await crawl(values);
 
-    const mockResults = {
-      allData: [],
-      inputTokens: 1000,
-      outputTokens: 500,
-      totalCost:
-        (PRICING[values.model as keyof typeof PRICING].input * 1500) / 1000,
-      outputFolder: `output/${new Date().toISOString().split("T")[0]}`,
-      paginationInfo: values.enablePagination
-        ? {
-            pageUrls: [
-              "http://example.com/page/1",
-              "http://example.com/page/2",
-            ],
-            tokenCounts: { inputTokens: 200, outputTokens: 100 },
-            price:
-              (PRICING[values.model as keyof typeof PRICING].output * 300) /
-              1000,
-          }
-        : null,
-    };
+      // Success celebration
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
 
-    setResults(mockResults);
+      toast.success("Scraping Completed", {
+        description: "Your data has been successfully scraped and processed.",
+      });
+
+      const mockResults = {
+        allData: [],
+        inputTokens: 1000,
+        outputTokens: 500,
+        totalCost:
+          (PRICING[values.model as keyof typeof PRICING].input * 1500) / 1000,
+        outputFolder: `output/${new Date().toISOString().split("T")[0]}`,
+        paginationInfo: values.enablePagination
+          ? {
+              pageUrls: [
+                "http://example.com/page/1",
+                "http://example.com/page/2",
+              ],
+              tokenCounts: { inputTokens: 200, outputTokens: 100 },
+              price:
+                (PRICING[values.model as keyof typeof PRICING].output * 300) /
+                1000,
+            }
+          : null,
+      };
+
+      setResults(mockResults);
+    } catch (error) {
+      toast.error("Scraping Failed", {
+        description: `An error occurred while scraping: ${error}`,
+      });
+    }
   };
 
   const clearResults = () => {
@@ -61,12 +91,13 @@ function App() {
     document.body.classList.add("dark");
   }, []);
 
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
-
   if (!isConnected) {
-    return <div>Connecting...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin" />
+        <span className="ml-2 text-lg">Connecting to server...</span>
+      </div>
+    );
   }
 
   return (
@@ -76,11 +107,59 @@ function App() {
         clearResults={clearResults}
         results={results}
         onSubmit={onSubmit}
+        isPending={isPending}
       />
 
       {/* Main Content */}
       <div className="flex-1 p-4 overflow-auto">
         <h1 className="mb-4 text-3xl font-bold">Universal Web Scraper 🦑</h1>
+
+        {eventSourceErrorMessage && (
+          <Alert variant="destructive" className="mb-4">
+            <WifiOff className="w-4 h-4" />
+            <AlertTitle>Connection Error</AlertTitle>
+            <AlertDescription>
+              Unable to connect to the event source. Please check your internet
+              connection and try again.
+              {eventSourceErrorMessage && (
+                <span className="block mt-2 text-sm opacity-75">
+                  Error details: {eventSourceErrorMessage}
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isPending && (
+          <Alert className="mb-4">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <AlertTitle>Scraping in progress</AlertTitle>
+            <AlertDescription>
+              Please wait while we fetch your data. This may take a few moments.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="w-4 h-4" />
+            <AlertTitle>Scraping Failed</AlertTitle>
+            <AlertDescription>
+              {crawlError?.message ||
+                "An unexpected error occurred. Please try again or contact support if the issue persists."}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {performScrape && results && (
+          <Alert variant="default" className="mb-4">
+            <CheckCircle className="w-4 h-4" />
+            <AlertTitle>Scraping Completed</AlertTitle>
+            <AlertDescription>
+              Your data has been successfully scraped and processed.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {performScrape && results ? (
           <>
@@ -163,7 +242,17 @@ function App() {
             </Card>
           </>
         ) : (
-          <p>No results to display. Click "Scrape" to start.</p>
+          <Card>
+            <CardHeader>
+              <CardTitle>Welcome to Universal Web Scraper</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>
+                To get started, configure your scraping parameters in the
+                sidebar and click "Scrape".
+              </p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
