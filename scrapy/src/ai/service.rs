@@ -1,6 +1,9 @@
 use google_generative_ai_rs::v1::{
     api::Client,
-    gemini::{request::Request, Content, Part, Role},
+    gemini::{
+        request::{Request, SystemInstructionContent, SystemInstructionPart},
+        Content, Part, Role,
+    },
 };
 use log::{debug, error, info};
 
@@ -68,13 +71,7 @@ impl AIService {
     fn build_prompt(&self, html: &str, params: &ScrapeParams) -> String {
         let tags = params.tags.join(", ");
         format!(
-            r#"You are an intelligent text extraction and conversion assistant. Your task is to extract structured information 
-    from the given HTML and convert it into a pure JSON format. The JSON should contain only the structured data extracted from the HTML, 
-    with no additional commentary, explanations, or extraneous information. 
-    You may encounter cases where you can't find the data for the fields you need to extract, or the data may be in a foreign language.
-    Process the following HTML and provide the output in pure JSON format with no words before or after the JSON.
-
-    Extract the following information: {}.
+            r#"Extract the following information: {}.
     Return the result as a JSON array of objects, where each object represents an item with the specified fields.
     Only include the JSON array in your response, nothing else.
 
@@ -83,6 +80,15 @@ impl AIService {
     "#,
             tags, html
         )
+    }
+
+    fn build_system_prompt(&self) -> String {
+        r#"You are an intelligent text extraction and conversion assistant. Your task is to extract structured information 
+    from the given HTML and convert it into a pure JSON format. The JSON should contain only the structured data extracted from the HTML, 
+    with no additional commentary, explanations, or extraneous information. 
+    You may encounter cases where you can't find the data for the fields you need to extract, or the data may be in a foreign language.
+    Process the following HTML and provide the output in pure JSON format with no words before or after the JSON.
+    "#.to_string()
     }
 
     fn build_request(&self, prompt: String) -> Request {
@@ -99,7 +105,11 @@ impl AIService {
             tools: vec![],
             safety_settings: vec![],
             generation_config: None,
-            system_instruction: None,
+            system_instruction: Some(SystemInstructionContent {
+                parts: vec![SystemInstructionPart {
+                    text: Some(self.build_system_prompt()),
+                }],
+            }),
         }
     }
 

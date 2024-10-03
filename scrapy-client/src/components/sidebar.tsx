@@ -24,7 +24,14 @@ import { scrapeSchema } from "@/schemas";
 import { ScrapeSchema, ScrapingResult } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Loader2, X } from "lucide-react";
+import { Eye, EyeOff, Info, Loader2, X } from "lucide-react";
+import { useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Props {
   clearResults: () => void;
@@ -34,10 +41,13 @@ interface Props {
 }
 
 const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
+  const [showApiKey, setShowApiKey] = useState(false);
+
   const form = useForm<ScrapeSchema>({
     resolver: zodResolver(scrapeSchema),
     defaultValues: {
       model: "",
+      apiKey: "",
       url: "",
       enableScraping: false,
       tags: [],
@@ -47,7 +57,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
   });
 
   return (
-    <div className="p-6 overflow-y-auto w-80 bg-secondary">
+    <div className="w-80 overflow-y-auto bg-secondary p-6">
       <h2 className="mb-6 text-2xl font-bold">Scraper Settings</h2>
 
       <Form {...form}>
@@ -82,6 +92,54 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
 
           <FormField
             control={form.control}
+            name="apiKey"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center">
+                  API Key
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="ml-2 h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Enter your Gemini API key here.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      type={showApiKey ? "text" : "password"}
+                      placeholder="Enter your API key"
+                      {...field}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                    >
+                      {showApiKey ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </FormControl>
+                <FormDescription>
+                  Your API key is securely stored and never shared.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="url"
             render={({ field }) => (
               <FormItem>
@@ -99,12 +157,10 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
             control={form.control}
             name="enableScraping"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">Enable Scraping</FormLabel>
-                  <FormDescription>
-                    Specify fields to extract
-                  </FormDescription>
+                  <FormDescription>Specify fields to extract</FormDescription>
                 </div>
                 <FormControl>
                   <Switch
@@ -138,18 +194,20 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                       }}
                     />
                   </FormControl>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {field.value?.map((tag, index) => (
                       <Badge
                         key={index}
                         variant="secondary"
-                        className="flex items-center cursor-pointer"
+                        className="flex cursor-pointer items-center"
                       >
                         {tag}
                         <X
-                          className="w-3 h-3 ml-1"
+                          className="ml-1 h-3 w-3"
                           onClick={() => {
-                            field.onChange(field.value?.filter((t) => t !== tag));
+                            field.onChange(
+                              field.value?.filter((t) => t !== tag),
+                            );
                           }}
                         />
                       </Badge>
@@ -165,12 +223,10 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
             control={form.control}
             name="enablePagination"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">Enable Pagination</FormLabel>
-                  <FormDescription>
-                    Specify pagination details
-                  </FormDescription>
+                  <FormDescription>Specify pagination details</FormDescription>
                 </div>
                 <FormControl>
                   <Switch
@@ -190,7 +246,10 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                 <FormItem>
                   <FormLabel>Pagination Details</FormLabel>
                   <FormControl>
-                    <Input placeholder="E.g., Next button selector" {...field} />
+                    <Input
+                      placeholder="E.g., Next button selector"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -201,7 +260,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Scraping...
               </>
             ) : (
@@ -212,7 +271,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
       </Form>
 
       <Button
-        className="w-full mt-4"
+        className="mt-4 w-full"
         variant="outline"
         onClick={() => {
           clearResults();
@@ -238,7 +297,9 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
             </div>
             <div className="flex justify-between">
               <span>Total Cost:</span>
-              <span className="font-semibold">${results.totalCost.toFixed(4)}</span>
+              <span className="font-semibold">
+                ${results.totalCost.toFixed(4)}
+              </span>
             </div>
           </CardContent>
         </Card>

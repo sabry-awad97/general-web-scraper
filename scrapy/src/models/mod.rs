@@ -9,8 +9,9 @@ pub struct CrawlResponse {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ScrapeParams {
-    pub url: String,
     pub model: String,
+    pub api_key: String,
+    pub url: String,
     pub enable_scraping: bool,
     pub tags: Vec<String>,
     pub enable_pagination: bool,

@@ -1,4 +1,3 @@
-
 # Universal Web Scraper 🦑
 
 Universal Web Scraper is a powerful and flexible web scraping application built with a Rust backend and a React TypeScript frontend. It provides an intuitive interface for configuring and executing web scraping tasks, with real-time updates and data visualization.

@@ -47,10 +47,18 @@ apiClient.interceptors.response.use(
 );
 
 const api = {
-  crawl: async (params: ScrapeSchema) => {
-    const response = await apiClient.post<ScrapingResult>("/crawl", params);
-
-    return response.data;
+  crawl: async (params: ScrapeSchema): Promise<ScrapingResult> => {
+    try {
+      const response = await apiClient.post<ScrapingResult>("/crawl", params);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new Error(
+          error.response?.data?.message || "An error occurred while crawling",
+        );
+      }
+      throw error;
+    }
   },
 };
 

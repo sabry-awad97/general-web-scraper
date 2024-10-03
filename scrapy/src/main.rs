@@ -1,7 +1,7 @@
 use crate::crawler::Crawler;
 use rocket::{fs::FileServer, routes};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
-use services::{CrawlerService, RealCrawlerService, RealWebSocketService, WebSocketService};
+use services::{CrawlerService, WebSocketService};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,12 +20,10 @@ fn rocket() -> _ {
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    let websocket_service: Arc<dyn WebSocketService + Send + Sync> =
-        Arc::new(RealWebSocketService::new(1024));
+    let websocket_service = Arc::new(WebSocketService::new(1024));
 
     let crawler = Crawler::new(Duration::from_millis(200), 2, 500);
-    let crawler_service: Arc<dyn CrawlerService + Send + Sync> =
-        Arc::new(RealCrawlerService::new(crawler, websocket_service.clone()));
+    let crawler_service = Arc::new(CrawlerService::new(crawler, websocket_service.clone()));
 
     let cors = rocket_cors::CorsOptions {
         allowed_origins: AllowedOrigins::all(),

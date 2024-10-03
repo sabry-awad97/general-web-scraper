@@ -25,7 +25,6 @@ function App() {
     jsonMessages,
     error: eventSourceErrorMessage,
     isConnected,
-    clearMessages,
   } = useEventSource("/api/events");
 
   const [results, setResults] = useState<ScrapingResult | null>(null);
@@ -39,7 +38,6 @@ function App() {
 
   const onSubmit = async (values: ScrapeSchema) => {
     setPerformScrape(true);
-    clearMessages();
 
     try {
       await crawl(values);

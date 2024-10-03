@@ -89,16 +89,10 @@ export function useEventSource(url: string) {
     };
   }, [url, handleMessage]);
 
-  const clearMessages = useCallback(() => {
-    setTextMap(new Map());
-    setJsonMap(new Map());
-  }, []);
-
   return {
     error,
     isConnected,
     textMap,
     jsonMessages,
-    clearMessages,
   };
 }
