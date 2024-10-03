@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
-const createEventMessageSchema = <T extends z.ZodTypeAny>(payloadSchema: T) =>
+const createEventMessageSchema = () =>
   z.discriminatedUnion("type", [
     z.object({
       id: z.string(),
@@ -11,15 +11,13 @@ const createEventMessageSchema = <T extends z.ZodTypeAny>(payloadSchema: T) =>
     z.object({
       id: z.string(),
       type: z.literal("json"),
-      payload: payloadSchema,
+      payload: z.record(
+        z.union([z.string(), z.number(), z.boolean(), z.null()]),
+      ),
     }),
   ]);
 
-const DefaultJsonPayloadSchema = z.record(
-  z.union([z.string(), z.number(), z.boolean(), z.null()]),
-);
-
-const EventMessageSchema = createEventMessageSchema(DefaultJsonPayloadSchema);
+const EventMessageSchema = createEventMessageSchema();
 
 type EventMessage = z.infer<typeof EventMessageSchema>;
 
@@ -29,12 +27,14 @@ type JsonMessage = Extract<EventMessage, { type: "json" }>;
 export function useEventSource(url: string) {
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [textMessages, setTextMessages] = useState<
-    Map<string, TextMessage["payload"]>
-  >(new Map());
-  const [jsonMessages, setJsonMessages] = useState<
-    Map<string, JsonMessage["payload"]>
-  >(new Map());
+  const [textMap, setTextMap] = useState<Map<string, TextMessage["payload"]>>(
+    new Map(),
+  );
+  const [jsonMap, setJsonMap] = useState<Map<string, JsonMessage["payload"]>>(
+    new Map(),
+  );
+
+  const jsonMessages = useMemo(() => Array.from(jsonMap.values()), [jsonMap]);
 
   const handleMessage = useCallback((event: MessageEvent<string>) => {
     try {
@@ -44,10 +44,10 @@ export function useEventSource(url: string) {
       if (type === "json") {
         const jsonPayload = JSON.parse(rawPayload);
         parsedMessage = { type, payload: jsonPayload, id };
-        setJsonMessages((prev) => new Map(prev).set(id, jsonPayload));
+        setJsonMap((prev) => new Map(prev).set(id, jsonPayload));
       } else {
         parsedMessage = { type, payload: rawPayload, id };
-        setTextMessages((prev) => new Map(prev).set(id, rawPayload));
+        setTextMap((prev) => new Map(prev).set(id, rawPayload));
       }
 
       const validatedMessage = EventMessageSchema.parse(parsedMessage);
@@ -89,5 +89,5 @@ export function useEventSource(url: string) {
     };
   }, [url, handleMessage]);
 
-  return { error, isConnected, textMessages, jsonMessages };
+  return { error, isConnected, textMessages: textMap, jsonMessages };
 }

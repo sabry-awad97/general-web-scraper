@@ -17,7 +17,7 @@ import { PRICING } from "./lib/constants";
 import { ScrapeSchema, ScrapingResult } from "./types";
 
 function App() {
-  const { error, isConnected } = useEventSource("/api/events");
+  const { jsonMessages, error, isConnected } = useEventSource("/api/events");
 
   const [results, setResults] = useState<ScrapingResult | null>(null);
   const [performScrape, setPerformScrape] = useState(false);
@@ -26,16 +26,10 @@ function App() {
   const onSubmit = async (values: ScrapeSchema) => {
     setPerformScrape(true);
 
-    const result = await crawl(values);
-
-    console.log("result", result);
+    await crawl(values);
 
     const mockResults = {
-      allData: [
-        { id: "1", title: "Item 1", price: "$10.99" },
-        { id: "2", title: "Item 2", price: "$15.99" },
-        { id: "3", title: "Item 3", price: "$20.99" },
-      ],
+      allData: [],
       inputTokens: 1000,
       outputTokens: 500,
       totalCost:
@@ -85,7 +79,7 @@ function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 p-4 overflow-auto">
         <h1 className="mb-4 text-3xl font-bold">Universal Web Scraper 🦑</h1>
 
         {performScrape && results ? (
@@ -95,14 +89,14 @@ function App() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {results.allData[0] &&
-                      Object.keys(results.allData[0]).map((key) => (
+                    {jsonMessages[0] &&
+                      Object.keys(jsonMessages[0]).map((key) => (
                         <TableHead key={key}>{key}</TableHead>
                       ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {results.allData.map((item, index) => (
+                  {jsonMessages.map((item, index) => (
                     <TableRow key={index}>
                       {Object.values(item).map((value, valueIndex) => (
                         <TableCell key={valueIndex}>{value}</TableCell>
@@ -114,7 +108,7 @@ function App() {
             </ScrollArea>
 
             <h2 className="mt-4 text-2xl font-semibold">Download Options</h2>
-            <div className="mt-2 flex gap-2">
+            <div className="flex gap-2 mt-2">
               <Button onClick={() => alert("Downloading JSON...")}>
                 Download JSON
               </Button>
@@ -144,7 +138,7 @@ function App() {
                     </TableBody>
                   </Table>
                 </ScrollArea>
-                <div className="mt-2 flex gap-2">
+                <div className="flex gap-2 mt-2">
                   <Button
                     onClick={() => alert("Downloading Pagination JSON...")}
                   >

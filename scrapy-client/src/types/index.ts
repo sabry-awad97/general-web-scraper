@@ -4,10 +4,7 @@ import { z } from "zod";
 export type ScrapeSchema = z.infer<typeof scrapeSchema>;
 
 export interface ScrapingResult {
-  allData: {
-    id: string;
-    [key: string]: string | number | boolean | null;
-  }[];
+  allData: Record<string, string | number | boolean | null>[];
   inputTokens: number;
   outputTokens: number;
   totalCost: number;
