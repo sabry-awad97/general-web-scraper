@@ -9,3 +9,16 @@ export const scrapeSchema = z.object({
   enablePagination: z.boolean(),
   paginationDetails: z.string().optional(),
 });
+
+export const JsonPayloadSchema = z.array(
+  z.record(
+    z.union([
+      z.string(),
+      z.number(),
+      z.boolean(),
+      z.null(),
+      z.array(z.any()),
+      z.record(z.any()),
+    ]),
+  ),
+);

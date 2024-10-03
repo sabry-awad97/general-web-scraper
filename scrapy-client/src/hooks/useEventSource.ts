@@ -1,26 +1,15 @@
+import { JsonPayloadSchema } from "@/schemas";
+import { JsonPayload } from "@/types";
 import JSON5 from "json5";
 import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 
-const JsonPayloadSchema = z.array(
-  z.record(
-    z.union([
-      z.string(),
-      z.number(),
-      z.boolean(),
-      z.null(),
-      z.array(z.any()),
-      z.record(z.any()),
-    ]),
-  ),
-);
 
 const MessageSchema = z.object({
   type: z.enum(["text", "json"]),
   payload: z.string(),
 });
 
-type JsonPayload = z.infer<typeof JsonPayloadSchema>;
 
 export function useEventSource(url: string) {
   const [connectionError, setConnectionError] = useState<string | null>(null);

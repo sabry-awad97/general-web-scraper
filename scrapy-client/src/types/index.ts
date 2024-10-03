@@ -1,4 +1,4 @@
-import { scrapeSchema } from "@/schemas";
+import { JsonPayloadSchema, scrapeSchema } from "@/schemas";
 import { z } from "zod";
 
 export type ScrapeSchema = z.infer<typeof scrapeSchema>;
@@ -18,3 +18,5 @@ export interface ScrapingResult {
     price: number;
   } | null;
 }
+
+export type JsonPayload = z.infer<typeof JsonPayloadSchema>;
