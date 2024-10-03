@@ -63,6 +63,7 @@ interface Props {
 
 const API_KEY_STORAGE_KEY = "gemini_api_key";
 const API_KEY_LOCK_PASSWORD_STORAGE_KEY = "gemini_api_key_lock_password";
+const API_KEY_LOCKED_STATE_KEY = "gemini_api_key_locked_state";
 
 const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
   const [showApiKey, setShowApiKey] = useState(false);
@@ -89,6 +90,10 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
     if (savedApiKey) {
       form.setValue("apiKey", savedApiKey);
     }
+
+    // Initialize the locked state from storage
+    const lockedState = secureStorage.getItem(API_KEY_LOCKED_STATE_KEY);
+    setIsApiKeyLocked(lockedState === "true");
   }, [form]);
 
   const handleApiKeyChange = (value: string) => {
@@ -104,6 +109,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
     if (lockPassword) {
       // In a real implementation, you'd want to hash the password and store it securely
       secureStorage.setItem(API_KEY_LOCK_PASSWORD_STORAGE_KEY, lockPassword);
+      secureStorage.setItem(API_KEY_LOCKED_STATE_KEY, "true");
       setIsApiKeyLocked(true);
       setShowLockDialog(false);
       setLockPassword("");
@@ -114,6 +120,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
     if (
       lockPassword === secureStorage.getItem(API_KEY_LOCK_PASSWORD_STORAGE_KEY)
     ) {
+      secureStorage.setItem(API_KEY_LOCKED_STATE_KEY, "false");
       setIsApiKeyLocked(false);
       setShowLockDialog(false);
       setLockPassword("");
