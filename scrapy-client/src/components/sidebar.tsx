@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -131,356 +132,399 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
   };
 
   return (
-    <div className="w-[24rem] overflow-y-auto bg-gradient-to-b from-secondary to-background p-6">
-      <div className="mb-8 flex items-center space-x-4">
-        <svg
-          width="40"
-          height="40"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="text-primary"
-        >
-          <path
-            d="M12 2L2 7L12 12L22 7L12 2Z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M2 17L12 22L22 17"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M2 12L12 17L22 12"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <h1 className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-2xl font-bold text-transparent">
-          Scraper Settings
-        </h1>
-      </div>
+    <ScrollArea className="h-screen w-[24rem]">
+      <div className="bg-gradient-to-b from-secondary to-background p-6">
+        <div className="mb-8 flex items-center space-x-4">
+          <svg
+            width="40"
+            height="40"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="text-primary"
+          >
+            <path
+              d="M12 2L2 7L12 12L22 7L12 2Z"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M2 17L12 22L22 17"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M2 12L12 17L22 12"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <h1 className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-2xl font-bold text-transparent">
+            Scraper Settings
+          </h1>
+        </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {/* Model Selection */}
-          <FormField
-            control={form.control}
-            name="model"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-lg font-semibold">Model</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            {/* Model Selection */}
+            <FormField
+              control={form.control}
+              name="model"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-lg font-semibold">Model</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Model" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.keys(PRICING).map((model) => (
+                        <SelectItem key={model} value={model}>
+                          {model}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* API Key Input */}
+            <FormField
+              control={form.control}
+              name="apiKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center text-lg font-semibold">
+                    API Key
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="ml-2 h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            Your API key is securely encrypted and stored
+                            locally.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </FormLabel>
                   <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Model" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {Object.keys(PRICING).map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* API Key Input */}
-          <FormField
-            control={form.control}
-            name="apiKey"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center text-lg font-semibold">
-                  API Key
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="ml-2 h-4 w-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>
-                          Your API key is securely encrypted and stored locally.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input
-                      type={showApiKey ? "text" : "password"}
-                      placeholder="Enter your API key"
-                      {...field}
-                      onChange={(e) => handleApiKeyChange(e.target.value)}
-                      className={cn(
-                        "pr-28 transition-all duration-300",
-                        isApiKeyLocked && "bg-muted",
-                      )}
-                      disabled={isApiKeyLocked}
-                    />
-                    <div className="absolute right-0 top-0 flex h-full">
-                      <ApiKeyActions
-                        showApiKey={showApiKey}
-                        setShowApiKey={setShowApiKey}
-                        isApiKeyLocked={isApiKeyLocked}
-                        copyToClipboard={() => copyToClipboard(field.value)}
-                        isCopied={isCopied}
-                        setShowLockDialog={setShowLockDialog}
+                    <div className="relative">
+                      <Input
+                        type={showApiKey ? "text" : "password"}
+                        placeholder="Enter your API key"
+                        {...field}
+                        onChange={(e) => handleApiKeyChange(e.target.value)}
+                        className={cn(
+                          "pr-28 transition-all duration-300",
+                          isApiKeyLocked && "bg-muted",
+                        )}
+                        disabled={isApiKeyLocked}
                       />
-                    </div>
-                  </div>
-                </FormControl>
-                <FormDescription>
-                  Your API key is securely encrypted and stored locally.
-                  {field.value && !isApiKeyLocked && (
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      className="p-0 text-xs text-muted-foreground"
-                      onClick={() => handleApiKeyChange("")}
-                    >
-                      Clear API Key
-                    </Button>
-                  )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* URL Input */}
-          <FormField
-            control={form.control}
-            name="url"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-lg font-semibold">URL</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="https://example.com"
-                    {...field}
-                    className="transition-all duration-300"
-                  />
-                </FormControl>
-                <FormDescription>Enter the URL to scrape</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Enable Scraping Switch */}
-          <FormField
-            control={form.control}
-            name="enableScraping"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-                <div className="space-y-0.5">
-                  <FormLabel className="text-base font-semibold">
-                    Enable Scraping
-                  </FormLabel>
-                  <FormDescription>Specify fields to extract</FormDescription>
-                </div>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          {/* Fields to Extract */}
-          <AnimatePresence>
-            {form.watch("enableScraping") && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <FormField
-                  control={form.control}
-                  name="tags"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-lg font-semibold">
-                        Fields to Extract
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Add field and press Enter"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && e.currentTarget.value) {
-                              e.preventDefault();
-                              field.onChange([
-                                ...field.value,
-                                e.currentTarget.value,
-                              ]);
-                              e.currentTarget.value = "";
-                            }
-                          }}
-                          className="transition-all duration-300"
+                      <div className="absolute right-0 top-0 flex h-full">
+                        <ApiKeyActions
+                          showApiKey={showApiKey}
+                          setShowApiKey={setShowApiKey}
+                          isApiKeyLocked={isApiKeyLocked}
+                          copyToClipboard={() => copyToClipboard(field.value)}
+                          isCopied={isCopied}
+                          setShowLockDialog={setShowLockDialog}
                         />
-                      </FormControl>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {field.value?.map((tag, index) => (
-                          <Badge
-                            key={index}
-                            variant="secondary"
-                            className="flex cursor-pointer items-center transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
-                          >
-                            {tag}
-                            <X
-                              className="ml-1 h-3 w-3"
-                              onClick={() => {
-                                field.onChange(
-                                  field.value?.filter((t) => t !== tag),
-                                );
-                              }}
-                            />
-                          </Badge>
-                        ))}
                       </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+                    </div>
+                  </FormControl>
+                  <FormDescription>
+                    Your API key is securely encrypted and stored locally.
+                    {field.value && !isApiKeyLocked && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="p-0 text-xs text-muted-foreground"
+                        onClick={() => handleApiKeyChange("")}
+                      >
+                        Clear API Key
+                      </Button>
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          {/* Enable Pagination Switch */}
-          <FormField
-            control={form.control}
-            name="enablePagination"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm transition-all duration-300 hover:shadow-md">
-                <div className="space-y-0.5">
-                  <FormLabel className="text-base font-semibold">
-                    Enable Pagination
-                  </FormLabel>
-                  <FormDescription>Specify pagination details</FormDescription>
-                </div>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
+            {/* URL Input */}
+            <FormField
+              control={form.control}
+              name="url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-lg font-semibold">URL</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="https://example.com"
+                      {...field}
+                      className="transition-all duration-300"
+                    />
+                  </FormControl>
+                  <FormDescription>Enter the URL to scrape</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Enable Scraping Switch */}
+            <FormField
+              control={form.control}
+              name="enableScraping"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base font-semibold">
+                      Enable Scraping
+                    </FormLabel>
+                    <FormDescription>Specify fields to extract</FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Fields to Extract */}
+            <AnimatePresence>
+              {form.watch("enableScraping") && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <FormField
+                    control={form.control}
+                    name="tags"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-lg font-semibold">
+                          Fields to Extract
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Add field and press Enter"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && e.currentTarget.value) {
+                                e.preventDefault();
+                                field.onChange([
+                                  ...field.value,
+                                  e.currentTarget.value,
+                                ]);
+                                e.currentTarget.value = "";
+                              }
+                            }}
+                            className="transition-all duration-300"
+                          />
+                        </FormControl>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {field.value?.map((tag, index) => (
+                            <Badge
+                              key={index}
+                              variant="secondary"
+                              className="flex cursor-pointer items-center transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
+                            >
+                              {tag}
+                              <X
+                                className="ml-1 h-3 w-3"
+                                onClick={() => {
+                                  field.onChange(
+                                    field.value?.filter((t) => t !== tag),
+                                  );
+                                }}
+                              />
+                            </Badge>
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {/* Pagination Details */}
-          <AnimatePresence>
-            {form.watch("enablePagination") && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <FormField
-                  control={form.control}
-                  name="paginationDetails"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-lg font-semibold">
-                        Pagination Details
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="E.g., Next button selector"
-                          {...field}
-                          className="transition-all duration-300"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+            {/* Enable Pagination Switch */}
+            <FormField
+              control={form.control}
+              name="enablePagination"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm transition-all duration-300 hover:shadow-md">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base font-semibold">
+                      Enable Pagination
+                    </FormLabel>
+                    <FormDescription>
+                      Specify pagination details
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            className="w-full transition-all duration-300"
-            disabled={isPending}
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Scraping...
-              </>
-            ) : (
-              "Start Scraping"
-            )}
-          </Button>
-        </form>
-      </Form>
+            {/* Pagination Details */}
+            <AnimatePresence>
+              {form.watch("enablePagination") && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <FormField
+                    control={form.control}
+                    name="paginationDetails"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-lg font-semibold">
+                          Pagination Details
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="E.g., Next button selector"
+                            {...field}
+                            className="transition-all duration-300"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-      {/* Clear Results Button */}
-      <Button
-        className="mt-4 w-full transition-all duration-300"
-        variant="outline"
-        onClick={() => {
-          clearResults();
-          form.reset();
-        }}
-      >
-        Clear Results
-      </Button>
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="w-full transition-all duration-300"
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Scraping...
+                </>
+              ) : (
+                "Start Scraping"
+              )}
+            </Button>
+          </form>
+        </Form>
 
-      {/* Scraping Summary */}
-      <AnimatePresence>
-        {results && (
+        {/* Clear Results Button */}
+        <Button
+          className="mt-4 w-full transition-all duration-300"
+          variant="outline"
+          onClick={() => {
+            clearResults();
+            form.reset();
+          }}
+        >
+          Clear Results
+        </Button>
+
+        {/* Scraping Summary */}
+        <AnimatePresence>
+          {results && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="mt-6 overflow-hidden">
+                <CardHeader className="bg-primary text-primary-foreground">
+                  <CardTitle>Scraping Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 p-4">
+                  <SummaryItem
+                    label="Input Tokens"
+                    value={results.inputTokens.toString()}
+                  />
+                  <SummaryItem
+                    label="Output Tokens"
+                    value={results.outputTokens.toString()}
+                  />
+                  <SummaryItem
+                    label="Total Cost"
+                    value={`$${results.totalCost.toFixed(4)}`}
+                  />
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Scrolling indicator */}
+        <div className="mt-8 flex justify-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1, duration: 0.5 }}
+            className="text-muted-foreground"
           >
-            <Card className="mt-6 overflow-hidden">
-              <CardHeader className="bg-primary text-primary-foreground">
-                <CardTitle>Scraping Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 p-4">
-                <SummaryItem
-                  label="Input Tokens"
-                  value={results.inputTokens.toString()}
-                />
-                <SummaryItem
-                  label="Output Tokens"
-                  value={results.outputTokens.toString()}
-                />
-                <SummaryItem
-                  label="Total Cost"
-                  value={`$${results.totalCost.toFixed(4)}`}
-                />
-              </CardContent>
-            </Card>
+            <p className="text-sm">Scroll for more options</p>
+            <motion.div
+              animate={{
+                y: [0, 10, 0],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                repeatType: "loop",
+              }}
+              className="mt-2 flex justify-center"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 5v14" />
+                <path d="m19 12-7 7-7-7" />
+              </svg>
+            </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      </div>
 
       {/* Lock/Unlock Dialog */}
       <LockUnlockDialog
@@ -492,7 +536,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
         onLock={handleLockApiKey}
         onUnlock={handleUnlockApiKey}
       />
-    </div>
+    </ScrollArea>
   );
 };
 
