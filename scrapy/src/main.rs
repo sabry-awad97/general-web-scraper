@@ -45,7 +45,8 @@ fn rocket() -> _ {
                 routes::index,
                 routes::crawl,
                 routes::events,
-                routes::websocket
+                routes::websocket,
+                routes::websocket_select,
             ],
         )
         .mount("/", FileServer::from(static_dir))
