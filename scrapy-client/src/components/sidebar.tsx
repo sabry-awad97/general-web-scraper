@@ -2,6 +2,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -31,10 +38,19 @@ import { secureStorage } from "@/lib/secure-storage";
 import { scrapeSchema } from "@/schemas";
 import { ScrapeSchema, ScrapingResult } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Copy, Eye, EyeOff, Info, Loader2, X, Lock, Unlock } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Eye,
+  EyeOff,
+  Info,
+  Loader2,
+  Lock,
+  Unlock,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface Props {
   clearResults: () => void;
@@ -93,7 +109,9 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
   };
 
   const handleUnlockApiKey = () => {
-    if (lockPassword === secureStorage.getItem(API_KEY_LOCK_PASSWORD_STORAGE_KEY)) {
+    if (
+      lockPassword === secureStorage.getItem(API_KEY_LOCK_PASSWORD_STORAGE_KEY)
+    ) {
       setIsApiKeyLocked(false);
       setShowLockDialog(false);
       setLockPassword("");
@@ -104,7 +122,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
   };
 
   return (
-    <div className="p-6 overflow-y-auto w-[24rem] bg-secondary">
+    <div className="w-[24rem] overflow-y-auto bg-secondary p-6">
       <h2 className="mb-6 text-2xl font-bold">Scraper Settings</h2>
 
       <Form {...form}>
@@ -147,7 +165,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Info className="w-4 h-4 ml-2 text-muted-foreground" />
+                        <Info className="ml-2 h-4 w-4 text-muted-foreground" />
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>
@@ -167,7 +185,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                       className="pr-28"
                       disabled={isApiKeyLocked}
                     />
-                    <div className="absolute top-0 right-0 flex h-full">
+                    <div className="absolute right-0 top-0 flex h-full">
                       <Button
                         type="button"
                         variant="ghost"
@@ -177,9 +195,9 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                         disabled={isApiKeyLocked}
                       >
                         {showApiKey ? (
-                          <EyeOff className="w-4 h-4" />
+                          <EyeOff className="h-4 w-4" />
                         ) : (
-                          <Eye className="w-4 h-4" />
+                          <Eye className="h-4 w-4" />
                         )}
                       </Button>
                       <Button
@@ -191,9 +209,9 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                         disabled={isApiKeyLocked}
                       >
                         {isCopied ? (
-                          <Check className="w-4 h-4 text-green-500" />
+                          <Check className="h-4 w-4 text-green-500" />
                         ) : (
-                          <Copy className="w-4 h-4" />
+                          <Copy className="h-4 w-4" />
                         )}
                       </Button>
                       <Button
@@ -204,9 +222,9 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                         onClick={() => setShowLockDialog(true)}
                       >
                         {isApiKeyLocked ? (
-                          <Lock className="w-4 h-4" />
+                          <Lock className="h-4 w-4" />
                         ) : (
-                          <Unlock className="w-4 h-4" />
+                          <Unlock className="h-4 w-4" />
                         )}
                       </Button>
                     </div>
@@ -250,7 +268,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
             control={form.control}
             name="enableScraping"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">Enable Scraping</FormLabel>
                   <FormDescription>Specify fields to extract</FormDescription>
@@ -287,16 +305,16 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
                       }}
                     />
                   </FormControl>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {field.value?.map((tag, index) => (
                       <Badge
                         key={index}
                         variant="secondary"
-                        className="flex items-center cursor-pointer"
+                        className="flex cursor-pointer items-center"
                       >
                         {tag}
                         <X
-                          className="w-3 h-3 ml-1"
+                          className="ml-1 h-3 w-3"
                           onClick={() => {
                             field.onChange(
                               field.value?.filter((t) => t !== tag),
@@ -316,7 +334,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
             control={form.control}
             name="enablePagination"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">Enable Pagination</FormLabel>
                   <FormDescription>Specify pagination details</FormDescription>
@@ -353,7 +371,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Scraping...
               </>
             ) : (
@@ -364,7 +382,7 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
       </Form>
 
       <Button
-        className="w-full mt-4"
+        className="mt-4 w-full"
         variant="outline"
         onClick={() => {
           clearResults();
@@ -401,11 +419,17 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
       <Dialog open={showLockDialog} onOpenChange={setShowLockDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isApiKeyLocked ? "Unlock API Key" : "Lock API Key"}</DialogTitle>
+            <DialogTitle>
+              {isApiKeyLocked ? "Unlock API Key" : "Lock API Key"}
+            </DialogTitle>
           </DialogHeader>
           <Input
             type="password"
-            placeholder={isApiKeyLocked ? "Enter password to unlock" : "Set a password to lock"}
+            placeholder={
+              isApiKeyLocked
+                ? "Enter password to unlock"
+                : "Set a password to lock"
+            }
             value={lockPassword}
             onChange={(e) => setLockPassword(e.target.value)}
           />
@@ -413,7 +437,9 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
             <Button onClick={() => setShowLockDialog(false)} variant="outline">
               Cancel
             </Button>
-            <Button onClick={isApiKeyLocked ? handleUnlockApiKey : handleLockApiKey}>
+            <Button
+              onClick={isApiKeyLocked ? handleUnlockApiKey : handleLockApiKey}
+            >
               {isApiKeyLocked ? "Unlock" : "Lock"}
             </Button>
           </DialogFooter>
