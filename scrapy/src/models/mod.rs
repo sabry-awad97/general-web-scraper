@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
-pub struct CrawlResponse {
-    pub items: Vec<String>,
-}
+mod message;
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -45,35 +42,63 @@ pub struct TokenCounts {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, Hash, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub enum EventType {
+pub enum MessageType {
     Text,
     Json,
+    Progress,
+    Error,
+    Success,
+    Warning,
 }
 
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WebSocketMessage {
     #[serde(rename = "type")]
-    pub r#type: EventType,
+    pub r#type: MessageType,
     pub payload: String,
+    pub metadata: Option<serde_json::Value>,
 }
 
 impl WebSocketMessage {
-    pub fn new_text(payload: String) -> Self {
+    pub fn new(
+        message_type: MessageType,
+        payload: String,
+        metadata: Option<serde_json::Value>,
+    ) -> Self {
         Self {
-            r#type: EventType::Text,
+            r#type: message_type,
             payload,
+            metadata,
         }
     }
 
-    pub fn new_json<T>(value: &T) -> Self
-    where
-        T: Serialize,
-    {
+    pub fn text(payload: String) -> Self {
+        Self::new(MessageType::Text, payload, None)
+    }
+
+    pub fn json<T: Serialize>(value: &T) -> Self {
         let json = serde_json::to_string_pretty(value).unwrap_or_default();
-        Self {
-            r#type: EventType::Json,
-            payload: json,
-        }
+        Self::new(MessageType::Json, json, None)
+    }
+
+    pub fn progress(percentage: f32, message: String) -> Self {
+        Self::new(
+            MessageType::Progress,
+            message,
+            Some(serde_json::json!({ "percentage": percentage })),
+        )
+    }
+
+    pub fn error(message: String) -> Self {
+        Self::new(MessageType::Error, message, None)
+    }
+
+    pub fn success(message: String) -> Self {
+        Self::new(MessageType::Success, message, None)
+    }
+
+    pub fn warning(message: String) -> Self {
+        Self::new(MessageType::Warning, message, None)
     }
 }

@@ -27,7 +27,7 @@ impl WebSocketService {
 
     pub async fn send_message(&self, message: WebSocketMessage) -> Result<(), WebSocketError> {
         let sender = self.sender.lock().await;
-        let _ = sender.send(message).map_err(WebSocketError::from);
+        sender.send(message).map_err(WebSocketError::from)?;
         Ok(())
     }
 

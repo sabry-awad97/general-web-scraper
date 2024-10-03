@@ -20,3 +20,22 @@ export interface ScrapingResult {
 }
 
 export type JsonPayload = z.infer<typeof JsonPayloadSchema>;
+
+export enum MessageType {
+  Text = "text",
+  Json = "json",
+  Progress = "progress",
+  Error = "error",
+  Success = "success",
+  Warning = "warning",
+}
+
+export interface WebSocketMessage {
+  type: MessageType;
+  payload: string;
+  metadata?: ProgressMetadata;
+}
+
+export interface ProgressMetadata {
+  percentage: number;
+}

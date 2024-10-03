@@ -5,7 +5,8 @@ use rocket::{get, post, State};
 use std::sync::Arc;
 use ws::Message;
 
-use crate::models::{CrawlResponse, ScrapeParams, WebSocketMessage};
+use crate::error::AppError;
+use crate::models::{ScrapeParams, WebSocketMessage};
 use crate::services::{CrawlerService, WebSocketService};
 
 #[get("/")]
@@ -71,9 +72,7 @@ pub fn websocket(ws: ws::WebSocket) -> ws::Channel<'static> {
 }
 
 #[get("/events")]
-pub async fn events(
-    websocket_service: &State<Arc<WebSocketService>>,
-) -> EventStream![] {
+pub async fn events(websocket_service: &State<Arc<WebSocketService>>) -> EventStream![] {
     log::info!("Client connected to SSE events stream");
     let receiver = websocket_service.subscribe().await;
     EventStream! {
@@ -98,7 +97,7 @@ pub async fn crawl(
     params: Json<ScrapeParams>,
     websocket_service: &State<Arc<WebSocketService>>,
     crawler_service: &State<Arc<CrawlerService>>,
-) -> Json<CrawlResponse> {
+) -> Result<(), rocket::http::Status> {
     log::info!(
         "Received crawl request for URL: {} with parameters: {:#?}",
         params.url,
@@ -107,7 +106,7 @@ pub async fn crawl(
 
     let start_message = format!("Crawling started for {}", params.url);
     match websocket_service
-        .send_message(WebSocketMessage::new_text(start_message.clone()))
+        .send_message(WebSocketMessage::text(start_message.clone()))
         .await
     {
         Ok(_) => log::info!("Successfully sent crawl start message: {}", start_message),
@@ -118,48 +117,35 @@ pub async fn crawl(
         ),
     }
 
-    let result = crawler_service.crawl(params.into_inner()).await;
-
+    let params = params.into_inner();
+    let result: Result<(), AppError> = crawler_service.crawl(params.clone()).await;
     match result {
-        Ok(response) => {
-            log::info!(
-                "Crawling completed successfully. Items found: {}",
-                response.items.len()
-            );
-            let completion_message = "Crawling completed successfully";
-            if let Err(e) = websocket_service
-                .send_message(WebSocketMessage::new_text(completion_message.to_string()))
+        Ok(_) => {
+            let success_message = format!("Crawling completed for {}", params.url);
+            match websocket_service
+                .send_message(WebSocketMessage::text(success_message.clone()))
                 .await
             {
-                log::error!(
-                    "Failed to send crawl completion message: {}. Error: {}",
-                    completion_message,
-                    e
-                );
-            } else {
-                log::info!(
-                    "Successfully sent crawl completion message: {}",
-                    completion_message
-                );
+                Ok(_) => {
+                    log::info!(
+                        "Successfully sent crawl completion message: {}",
+                        success_message
+                    );
+                    Ok(())
+                }
+                Err(e) => {
+                    log::error!(
+                        "Failed to send crawl completion message: {}. Error: {}",
+                        success_message,
+                        e
+                    );
+                    Err(rocket::http::Status::InternalServerError)
+                }
             }
-            Json(response)
         }
         Err(e) => {
-            log::error!("Crawling failed: {}", e);
-            let error_message = format!("Crawling failed: {}", e);
-            if let Err(send_err) = websocket_service
-                .send_message(WebSocketMessage::new_text(error_message.clone()))
-                .await
-            {
-                log::error!(
-                    "Failed to send crawl error message: {}. Error: {}",
-                    error_message,
-                    send_err
-                );
-            } else {
-                log::info!("Successfully sent crawl error message: {}", error_message);
-            }
-            Json(CrawlResponse { items: vec![] })
+            log::error!("Crawl failed: {}", e);
+            Err(rocket::http::Status::InternalServerError)
         }
     }
 }

@@ -16,4 +16,7 @@ pub enum AppError {
 
     #[error("AI error: {0}")]
     AIError(String),
+
+    #[error("WebSocket error: {0}")]
+    WebSocketError(String),
 }

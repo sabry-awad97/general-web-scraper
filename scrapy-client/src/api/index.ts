@@ -1,4 +1,4 @@
-import { ScrapeSchema, ScrapingResult } from "@/types";
+import { ScrapeSchema } from "@/types";
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from "axios";
 
 // Define the base URL for your API
@@ -47,9 +47,9 @@ apiClient.interceptors.response.use(
 );
 
 const api = {
-  crawl: async (params: ScrapeSchema): Promise<ScrapingResult> => {
+  crawl: async (params: ScrapeSchema) => {
     try {
-      const response = await apiClient.post<ScrapingResult>("/crawl", params);
+      const response = await apiClient.post("/crawl", params);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {

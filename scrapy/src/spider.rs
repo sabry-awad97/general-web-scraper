@@ -1,15 +1,14 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use reqwest::Client;
 use scraper::{Html, Selector};
 use serde::Serialize;
-use tokio::sync::mpsc;
 
 use crate::{
     error::AppError,
     models::{ScrapeParams, WebSocketMessage},
-    services::AIService,
+    services::{AIService, WebSocketService},
 };
 
 #[async_trait]
@@ -26,7 +25,7 @@ pub trait Spider: Send + Sync {
 pub struct GenericSpider {
     http_client: Client,
     selectors: Vec<Selector>,
-    websocket_tx: Option<mpsc::Sender<WebSocketMessage>>,
+    websocket_service: Arc<WebSocketService>,
     ai_service: AIService,
     scrape_params: ScrapeParams,
 }
@@ -34,7 +33,7 @@ pub struct GenericSpider {
 impl GenericSpider {
     pub fn new(
         selectors: Vec<&str>,
-        websocket_tx: Option<mpsc::Sender<WebSocketMessage>>,
+        websocket_service: Arc<WebSocketService>,
         scrape_params: ScrapeParams,
     ) -> Result<Self, AppError> {
         let http_timeout = Duration::from_secs(6);
@@ -53,7 +52,7 @@ impl GenericSpider {
         Ok(Self {
             http_client,
             selectors,
-            websocket_tx,
+            websocket_service,
             ai_service,
             scrape_params,
         })
@@ -96,9 +95,10 @@ impl Spider for GenericSpider {
                 .extract_items(&item, &self.scrape_params)
                 .await?;
 
-            if let Some(tx) = &self.websocket_tx {
-                let _ = tx.send(WebSocketMessage::new_json(&extracted_items)).await;
-            }
+            self.websocket_service
+                .send_message(WebSocketMessage::json(&extracted_items))
+                .await
+                .map_err(|e| AppError::WebSocketError(e.to_string()))?;
         }
         Ok(())
     }
