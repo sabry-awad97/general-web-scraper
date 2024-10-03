@@ -1,5 +1,4 @@
 import confetti from "canvas-confetti";
-import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AlertManager from "./components/alert-manager";
@@ -17,16 +16,15 @@ function App() {
     useEventSource("/api/events");
 
   const [results, setResults] = useState<ScrapingResult | null>(null);
-  const [performScrape, setPerformScrape] = useState(false);
   const {
     mutateAsync: crawl,
     isPending,
+    isSuccess,
     isError,
     error: crawlError,
   } = useCrawl();
 
   const onSubmit = async (values: ScrapeSchema) => {
-    setPerformScrape(true);
     try {
       await crawl(values);
       celebrateSuccess();
@@ -37,32 +35,13 @@ function App() {
     }
   };
 
-  const clearResults = () => {
-    setResults(null);
-    setPerformScrape(false);
-  };
-
   useEffect(() => {
     document.body.classList.add("dark");
   }, []);
 
-  if (!isConnected) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2 text-lg">Connecting to server...</span>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-screen">
-      <Sidebar
-        clearResults={clearResults}
-        results={results}
-        onSubmit={onSubmit}
-        isPending={isPending}
-      />
+      <Sidebar results={results} onSubmit={onSubmit} isPending={isPending} />
 
       <main className="flex-1 overflow-auto p-6">
         <h1 className="mb-6 text-4xl font-bold text-white">
@@ -80,7 +59,7 @@ function App() {
           crawlError={crawlError}
         />
 
-        {performScrape && results ? (
+        {isSuccess && results ? (
           <ResultsDisplay
             results={results}
             receivedJsonData={receivedJsonData}

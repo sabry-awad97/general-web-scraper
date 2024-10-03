@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -27,7 +27,7 @@ export default function ResultsDisplay({
           Scraped/Parsed Data
         </h2>
         <ScrollArea className="h-[300px] rounded-md border">
-          <Table>
+          <Table className="w-full whitespace-nowrap">
             <TableHeader>
               <TableRow>
                 {receivedJsonData[0] &&
@@ -50,6 +50,7 @@ export default function ResultsDisplay({
               ))}
             </TableBody>
           </Table>
+          <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </section>
 
@@ -73,7 +74,7 @@ export default function ResultsDisplay({
             Pagination Information
           </h2>
           <ScrollArea className="h-[200px] rounded-md border">
-            <Table>
+            <Table className="w-full whitespace-nowrap">
               <TableHeader>
                 <TableRow>
                   <TableHead>Page URLs</TableHead>
@@ -87,8 +88,9 @@ export default function ResultsDisplay({
                 ))}
               </TableBody>
             </Table>
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
-          <div className="mt-2 flex gap-2">
+          <div className="flex gap-2 mt-2">
             <Button onClick={() => alert("Downloading Pagination JSON...")}>
               Download Pagination JSON
             </Button>
@@ -99,7 +101,7 @@ export default function ResultsDisplay({
         </section>
       )}
 
-      <Card className="bg-white/10 text-white">
+      <Card className="text-white bg-white/10">
         <CardHeader>
           <CardTitle>Output Details</CardTitle>
         </CardHeader>

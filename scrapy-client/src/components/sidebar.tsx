@@ -56,7 +56,6 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 interface Props {
-  clearResults: () => void;
   results: ScrapingResult | null;
   onSubmit: (data: ScrapeSchema) => void;
   isPending: boolean;
@@ -66,7 +65,7 @@ const API_KEY_STORAGE_KEY = "gemini_api_key";
 const API_KEY_LOCK_PASSWORD_STORAGE_KEY = "gemini_api_key_lock_password";
 const API_KEY_LOCKED_STATE_KEY = "gemini_api_key_locked_state";
 
-const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
+const Sidebar = ({ results, onSubmit, isPending }: Props) => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isApiKeyLocked, setIsApiKeyLocked] = useState(false);
   const [showLockDialog, setShowLockDialog] = useState(false);
@@ -448,11 +447,14 @@ const Sidebar = ({ clearResults, results, onSubmit, isPending }: Props) => {
           className="w-full mt-4 transition-all duration-300"
           variant="outline"
           onClick={() => {
-            clearResults();
-            form.reset();
+            form.reset({
+              ...form.getValues(),
+              url: "",
+              tags: [],
+            });
           }}
         >
-          Clear Results
+          Reset Settings
         </Button>
 
         {/* Scrolling indicator - Moved here */}
