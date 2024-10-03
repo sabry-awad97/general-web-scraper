@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::models::ScrapeParams;
+use crate::models::{ScrapeParams, WebSocketMessage};
 use crate::spider::GenericSpider;
 use crate::Crawler;
 use std::sync::Arc;
@@ -28,6 +28,10 @@ impl CrawlerService {
         )?);
 
         self.crawler.crawl(spider, params).await;
+
+        self.websocket_service
+            .send_message(WebSocketMessage::success("Crawl completed successfully!"))
+            .await?;
         Ok(())
     }
 }

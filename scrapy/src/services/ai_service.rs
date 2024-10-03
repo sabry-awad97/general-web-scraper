@@ -39,7 +39,7 @@ impl AIService {
 
         let response = self.client.post(30, &request).await.map_err(|e| {
             error!("AI request failed: {}", e);
-            AppError::AIError(e.to_string())
+            AppError::AI(e.to_string())
         })?;
 
         let mut message = String::new();
@@ -113,7 +113,7 @@ impl AIService {
         debug!("Parsing AI response");
         serde_json::from_str(response).map_err(|e| {
             error!("Failed to parse AI response: {}", e);
-            AppError::AIError(format!("Failed to parse AI response: {}", e))
+            AppError::AI(format!("Failed to parse AI response: {}", e))
         })
     }
 }

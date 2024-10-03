@@ -90,6 +90,10 @@ impl Spider for GenericSpider {
 
     async fn process(&self, item: Self::Item) -> Result<(), Self::Error> {
         if self.scrape_params.enable_scraping {
+            self.websocket_service
+                .send_message(WebSocketMessage::text("Processing data with AI..."))
+                .await?;
+
             let extracted_items = self
                 .ai_service
                 .extract_items(&item, &self.scrape_params)
@@ -97,8 +101,7 @@ impl Spider for GenericSpider {
 
             self.websocket_service
                 .send_message(WebSocketMessage::json(&extracted_items))
-                .await
-                .map_err(|e| AppError::WebSocketError(e.to_string()))?;
+                .await?;
         }
         Ok(())
     }

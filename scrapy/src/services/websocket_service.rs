@@ -1,15 +1,10 @@
+use crate::error::WebSocketError;
 use crate::models::WebSocketMessage;
-use log::error;
 use rocket::tokio::sync::broadcast::{channel, Receiver, Sender};
 use rocket::tokio::sync::Mutex;
 use std::sync::Arc;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum WebSocketError {
-    #[error("Failed to send message: {0}")]
-    SendError(#[from] tokio::sync::broadcast::error::SendError<WebSocketMessage>),
-}
+
 
 pub struct WebSocketService {
     sender: Arc<Mutex<Sender<WebSocketMessage>>>,

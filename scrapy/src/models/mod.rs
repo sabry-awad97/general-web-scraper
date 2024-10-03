@@ -73,8 +73,8 @@ impl WebSocketMessage {
         }
     }
 
-    pub fn text(payload: String) -> Self {
-        Self::new(MessageType::Text, payload, None)
+    pub fn text(payload: impl Into<String>) -> Self {
+        Self::new(MessageType::Text, payload.into(), None)
     }
 
     pub fn json<T: Serialize>(value: &T) -> Self {
@@ -82,23 +82,23 @@ impl WebSocketMessage {
         Self::new(MessageType::Json, json, None)
     }
 
-    pub fn progress(percentage: f32, message: String) -> Self {
+    pub fn progress(percentage: f32, message: impl Into<String>) -> Self {
         Self::new(
             MessageType::Progress,
-            message,
+            message.into(),
             Some(serde_json::json!({ "percentage": percentage })),
         )
     }
 
-    pub fn error(message: String) -> Self {
-        Self::new(MessageType::Error, message, None)
+    pub fn error(message: impl Into<String>) -> Self {
+        Self::new(MessageType::Error, message.into(), None)
     }
 
-    pub fn success(message: String) -> Self {
-        Self::new(MessageType::Success, message, None)
+    pub fn success(message: impl Into<String>) -> Self {
+        Self::new(MessageType::Success, message.into(), None)
     }
 
-    pub fn warning(message: String) -> Self {
-        Self::new(MessageType::Warning, message, None)
+    pub fn warning(message: impl Into<String>) -> Self {
+        Self::new(MessageType::Warning, message.into(), None)
     }
 }

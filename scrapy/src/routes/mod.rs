@@ -119,6 +119,7 @@ pub async fn crawl(
 
     let params = params.into_inner();
     let result: Result<(), AppError> = crawler_service.crawl(params.clone()).await;
+
     match result {
         Ok(_) => {
             let success_message = format!("Crawling completed for {}", params.url);
