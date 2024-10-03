@@ -57,7 +57,7 @@ impl GenericSpider {
             .map(|s| Selector::parse(s).unwrap())
             .collect();
 
-        let ai_service = AIService::new()?;
+        let ai_service = AIService::new(&scrape_params.api_key)?;
 
         Ok(Self {
             http_client,

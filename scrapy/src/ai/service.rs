@@ -16,16 +16,12 @@ pub struct AIService {
 }
 
 impl AIService {
-    pub fn new() -> Result<Self, AppError> {
+    pub fn new(api_key: &str) -> Result<Self, AppError> {
         debug!("Initializing AIService");
-        let api_key = std::env::var("GEMINI_API_KEY").map_err(|_| {
-            error!("Failed to retrieve GEMINI_API_KEY from environment");
-            AppError::MissingAPIKey("GEMINI_API_KEY".to_string())
-        })?;
 
         let client = Client::new_from_model(
             google_generative_ai_rs::v1::gemini::Model::Gemini1_5Flash,
-            api_key,
+            api_key.to_string(),
         );
 
         info!("AIService initialized successfully");
