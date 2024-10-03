@@ -1,31 +1,47 @@
 import JSON5 from "json5";
 import { useCallback, useEffect, useState } from "react";
+import { z } from "zod";
 
-type JsonPayload = Record<string, string | number | boolean | null>[];
+const JsonPayloadSchema = z.array(
+  z.record(
+    z.union([
+      z.string(),
+      z.number(),
+      z.boolean(),
+      z.null(),
+      z.array(z.any()),
+      z.record(z.any()),
+    ]),
+  ),
+);
+
+const MessageSchema = z.object({
+  type: z.enum(["text", "json"]),
+  payload: z.string(),
+});
+
+type JsonPayload = z.infer<typeof JsonPayloadSchema>;
 
 export function useEventSource(url: string) {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [receivedJsonData, setReceivedJsonData] = useState<JsonPayload[]>([]);
+  const [receivedJsonData, setReceivedJsonData] = useState<JsonPayload>([]);
 
   const handleIncomingMessage = useCallback((event: MessageEvent<string>) => {
     try {
-      const parsedMessage = JSON5.parse(event.data);
+      const parsedMessage = MessageSchema.parse(JSON5.parse(event.data));
+
       switch (parsedMessage.type) {
         case "text": {
           console.log("Received message:", parsedMessage.payload);
           break;
         }
         case "json": {
-          const jsonPayload = JSON5.parse<JsonPayload[]>(parsedMessage.payload);
+          const jsonPayload = JsonPayloadSchema.parse(
+            JSON5.parse(parsedMessage.payload),
+          );
           setReceivedJsonData(jsonPayload);
           break;
-        }
-        default: {
-          console.warn(
-            "Received message with unknown type:",
-            parsedMessage.type,
-          );
         }
       }
     } catch (error) {
