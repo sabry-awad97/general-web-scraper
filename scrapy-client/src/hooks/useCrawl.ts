@@ -1,4 +1,4 @@
-import { ScrapeSchema } from "@/schemas";
+import { ScrapeSchema } from "@/types";
 import { useMutation } from "@tanstack/react-query";
 import api from "../api";
 
