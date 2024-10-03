@@ -1,65 +1,107 @@
+use std::sync::Arc;
+
 use google_generative_ai_rs::v1::{
     api::Client,
     gemini::{
-        request::{Request, SystemInstructionContent, SystemInstructionPart},
-        Content, Part, Role,
+        request::{GenerationConfig, Request, SystemInstructionContent, SystemInstructionPart},
+        Content, Part, ResponseType, Role,
     },
 };
 use log::{debug, error, info};
+use tokio::sync::mpsc;
 
 use crate::error::AppError;
-use crate::models::ScrapeParams;
-use serde_json::Value;
+use crate::models::{ScrapeParams, WebSocketMessage};
+use crate::services::WebSocketService;
 
 pub struct AIService {
-    client: Client,
+    client: Arc<Client>,
+    websocket_service: Arc<WebSocketService>,
 }
 
 impl AIService {
-    pub fn new(api_key: &str) -> Result<Self, AppError> {
+    pub fn new(api_key: &str, websocket_service: Arc<WebSocketService>) -> Result<Self, AppError> {
         debug!("Initializing AIService");
 
-        let client = Client::new_from_model(
+        let client = Client::new_from_model_response_type(
             google_generative_ai_rs::v1::gemini::Model::Gemini1_5Flash,
             api_key.to_string(),
+            ResponseType::StreamGenerateContent,
         );
 
         info!("AIService initialized successfully");
-        Ok(Self { client })
+        Ok(Self {
+            client: Arc::new(client),
+            websocket_service,
+        })
     }
 
     pub async fn extract_items(
         &self,
         html: &str,
         params: &ScrapeParams,
-    ) -> Result<Vec<Value>, AppError> {
+    ) -> Result<Vec<serde_json::Value>, AppError> {
         debug!("Extracting items with params: {:?}", params);
         let prompt = self.build_prompt(html, params);
         let request = self.build_request(prompt);
 
-        let response = self.client.post(30, &request).await.map_err(|e| {
-            error!("AI request failed: {}", e);
-            AppError::AI(e.to_string())
-        })?;
+        let (tx, mut rx) = mpsc::channel(100);
 
-        let mut message = String::new();
+        self.websocket_service
+            .send_message(WebSocketMessage::text("Starting AI processing..."))
+            .await?;
 
-        if let Some(response) = response.rest() {
-            if let Some(candidate) = response.candidates.first() {
-                if let Some(part) = candidate.content.parts.first() {
-                    if let Some(text) = part.text.as_ref() {
-                        info!("{}", text);
-                        message.push_str(text);
-                    }
+        let client = self.client.clone(); // Clone the client
+        tokio::spawn(async move {
+            let response = client.post(30, &request).await.unwrap();
+
+            if let Some(stream_response) = response.streamed() {
+                if let Some(json_stream) = stream_response.response_stream {
+                    Client::for_each_async(json_stream, {
+                        let tx = tx.clone();
+                        move |response| {
+                            let tx = tx.clone();
+                            async move {
+                                if let Some(candidate) = response.candidates.first() {
+                                    if let Some(part) = candidate.content.parts.first() {
+                                        if let Some(text) = part.text.as_ref() {
+                                            let _ = tx.send(text.to_string()).await;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    })
+                    .await;
                 }
             }
+
+            let _ = tx.send("EOF_MARKER".to_string()).await;
+        });
+
+        let mut full_response = String::new();
+        while let Some(chunk) = rx.recv().await {
+            if chunk == "EOF_MARKER" {
+                break;
+            }
+            full_response.push_str(&chunk);
+            self.websocket_service
+                .send_message(WebSocketMessage::text(&chunk))
+                .await?;
         }
 
-        debug!("AI response received, length: {} characters", message.len());
+        debug!(
+            "AI response received, length: {} characters",
+            full_response.len()
+        );
 
-        let parsed_response = self.parse_ai_response(&message)?;
+        let parsed_response = self.parse_ai_response(&full_response)?;
 
         info!("Successfully extracted {} items", parsed_response.len());
+
+        self.websocket_service
+            .send_message(WebSocketMessage::text("AI processing completed"))
+            .await?;
 
         Ok(parsed_response)
     }
@@ -100,7 +142,15 @@ impl AIService {
             }],
             tools: vec![],
             safety_settings: vec![],
-            generation_config: None,
+            generation_config: Some(GenerationConfig {
+                temperature: None,
+                top_p: None,
+                top_k: None,
+                candidate_count: None,
+                max_output_tokens: Some(4096),
+                stop_sequences: None,
+                response_mime_type: Some("application/json".to_string()),
+            }),
             system_instruction: Some(SystemInstructionContent {
                 parts: vec![SystemInstructionPart {
                     text: Some(self.build_system_prompt()),
@@ -109,7 +159,7 @@ impl AIService {
         }
     }
 
-    fn parse_ai_response(&self, response: &str) -> Result<Vec<Value>, AppError> {
+    fn parse_ai_response(&self, response: &str) -> Result<Vec<serde_json::Value>, AppError> {
         debug!("Parsing AI response");
         serde_json::from_str(response).map_err(|e| {
             error!("Failed to parse AI response: {}", e);

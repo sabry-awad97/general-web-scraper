@@ -40,14 +40,14 @@ impl GenericSpider {
         let http_client = Client::builder()
             .timeout(http_timeout)
             .build()
-            .expect("spiders/quotes: Building HTTP client");
+            .expect("spiders/general: Building HTTP client");
 
         let selectors = selectors
             .into_iter()
             .map(|s| Selector::parse(s).unwrap())
             .collect();
 
-        let ai_service = AIService::new(&scrape_params.api_key)?;
+        let ai_service = AIService::new(&scrape_params.api_key, websocket_service.clone())?;
 
         Ok(Self {
             http_client,
@@ -90,10 +90,6 @@ impl Spider for GenericSpider {
 
     async fn process(&self, item: Self::Item) -> Result<(), Self::Error> {
         if self.scrape_params.enable_scraping {
-            self.websocket_service
-                .send_message(WebSocketMessage::text("Processing data with AI..."))
-                .await?;
-
             let extracted_items = self
                 .ai_service
                 .extract_items(&item, &self.scrape_params)
