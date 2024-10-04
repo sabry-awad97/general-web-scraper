@@ -26,13 +26,14 @@ pub struct GenericSpider {
     http_client: Client,
     selectors: Vec<Selector>,
     websocket_service: Arc<WebSocketService>,
-    ai_service: AIService,
+    ai_service: Arc<AIService>,
     scrape_params: ScrapeParams,
 }
 
 impl GenericSpider {
     pub fn new(
         selectors: Vec<&str>,
+        ai_service: Arc<AIService>,
         websocket_service: Arc<WebSocketService>,
         scrape_params: ScrapeParams,
     ) -> Result<Self, AppError> {
@@ -46,8 +47,6 @@ impl GenericSpider {
             .into_iter()
             .map(|s| Selector::parse(s).unwrap())
             .collect();
-
-        let ai_service = AIService::new(&scrape_params.api_key, websocket_service.clone())?;
 
         Ok(Self {
             http_client,

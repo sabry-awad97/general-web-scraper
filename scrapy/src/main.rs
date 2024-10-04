@@ -1,7 +1,7 @@
 use crate::crawler::Crawler;
 use rocket::{fs::FileServer, routes};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
-use services::{CrawlerService, WebSocketService};
+use services::{AIService, CrawlerService, WebSocketService};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,9 +19,14 @@ fn rocket() -> _ {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let websocket_service = Arc::new(WebSocketService::new(1024));
+    let ai_service = Arc::new(AIService::new(websocket_service.clone()));
 
     let crawler = Crawler::new(Duration::from_millis(200), 2, 500);
-    let crawler_service = Arc::new(CrawlerService::new(crawler, websocket_service.clone()));
+    let crawler_service = Arc::new(CrawlerService::new(
+        crawler,
+        websocket_service.clone(),
+        ai_service.clone(),
+    ));
 
     let cors = rocket_cors::CorsOptions {
         allowed_origins: AllowedOrigins::all(),
@@ -41,10 +46,16 @@ fn rocket() -> _ {
     rocket::build()
         .mount(
             "/api",
-            routes![routes::index, routes::crawl, routes::websocket,],
+            routes![
+                routes::index,
+                routes::crawl,
+                routes::websocket,
+                routes::get_scraped_items
+            ],
         )
         .mount("/", FileServer::from(static_dir))
         .manage(websocket_service)
         .manage(crawler_service)
+        .manage(ai_service)
         .attach(cors)
 }

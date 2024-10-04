@@ -5,12 +5,12 @@ use google_generative_ai_rs::v1::{
     errors::GoogleAPIError,
     gemini::{
         request::{GenerationConfig, Request, SystemInstructionContent, SystemInstructionPart},
-        Content, Part, Role,
+        Content, Model, Part, Role,
     },
 };
 use log::{debug, error, info};
 use serde_json::Value;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, Mutex};
 
 use crate::error::AppError;
 use crate::models::{ScrapeParams, WebSocketMessage};
@@ -23,24 +23,28 @@ pub enum AIResponse {
 }
 
 pub struct AIService {
-    client: Arc<Client>,
+    client: Arc<Mutex<Option<Client>>>,
     websocket_service: Arc<WebSocketService>,
+    scraped_items: Arc<Mutex<Vec<serde_json::Value>>>,
 }
 
 impl AIService {
-    pub fn new(api_key: &str, websocket_service: Arc<WebSocketService>) -> Result<Self, AppError> {
+    pub fn new(websocket_service: Arc<WebSocketService>) -> Self {
         debug!("Initializing AIService");
-
-        let client = Client::new_from_model(
-            google_generative_ai_rs::v1::gemini::Model::Gemini1_5Flash,
-            api_key.to_string(),
-        );
-
         info!("AIService initialized successfully");
-        Ok(Self {
-            client: Arc::new(client),
+        Self {
+            client: Arc::new(Mutex::new(None)),
             websocket_service,
-        })
+            scraped_items: Arc::new(Mutex::new(vec![])),
+        }
+    }
+
+    pub async fn set_api_key(&self, api_key: &str) {
+        let mut client = self.client.lock().await;
+        *client = Some(Client::new_from_model(
+            Model::Gemini1_5Flash,
+            api_key.to_string(),
+        ));
     }
 
     pub async fn extract_items(
@@ -49,6 +53,7 @@ impl AIService {
         params: &ScrapeParams,
     ) -> Result<AIResponse, AppError> {
         debug!("Extracting items with params: {:?}", params);
+        self.set_api_key(&params.api_key).await;
         let system_prompt = self.build_system_prompt();
         let user_prompt = self.build_prompt(html, params);
         let request = self.build_request(system_prompt, user_prompt);
@@ -87,9 +92,11 @@ impl AIService {
         let client = self.client.clone();
         let websocket_service = self.websocket_service.clone();
         tokio::spawn(async move {
-            match client.post(30, &request).await {
-                Ok(response) => Self::handle_successful_response(response, tx, done_tx).await,
-                Err(e) => Self::handle_failed_response(e, websocket_service, done_tx).await,
+            if let Some(client) = client.lock().await.as_ref() {
+                match client.post(30, &request).await {
+                    Ok(response) => Self::handle_successful_response(response, tx, done_tx).await,
+                    Err(e) => Self::handle_failed_response(e, websocket_service, done_tx).await,
+                }
             }
         });
     }
@@ -183,6 +190,9 @@ impl AIService {
                 info!("Successfully processed AI response");
                 match parsed_response {
                     AIResponse::JsonArray(ref json_array) => {
+                        for item in json_array {
+                            self.store_scraped_item(item.clone()).await;
+                        }
                         self.websocket_service
                             .send_message(WebSocketMessage::success(&json_array))
                             .await?;
@@ -190,6 +200,7 @@ impl AIService {
                         Ok(parsed_response)
                     }
                     AIResponse::JsonObject(ref json_object) => {
+                        self.store_scraped_item(json_object.clone()).await;
                         self.websocket_service
                             .send_message(WebSocketMessage::success(&json_object))
                             .await?;
@@ -284,5 +295,15 @@ impl AIService {
 
         // If not JSON, return as plain text
         Ok(AIResponse::Text(response.to_string()))
+    }
+
+    pub async fn store_scraped_item(&self, item: serde_json::Value) {
+        let mut items = self.scraped_items.lock().await;
+        items.push(item);
+    }
+
+    pub async fn get_scraped_items(&self) -> Result<Vec<serde_json::Value>, AppError> {
+        let items = self.scraped_items.lock().await;
+        Ok(items.clone())
     }
 }

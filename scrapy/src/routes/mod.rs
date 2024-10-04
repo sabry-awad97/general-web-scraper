@@ -6,7 +6,7 @@ use ws::Message;
 
 use crate::error::AppError;
 use crate::models::{ScrapeParams, WebSocketMessage};
-use crate::services::{CrawlerService, WebSocketService};
+use crate::services::{AIService, CrawlerService, WebSocketService};
 
 #[get("/")]
 pub fn index() -> &'static str {
@@ -81,6 +81,19 @@ async fn handle_websocket(
     }
 
     Ok(())
+}
+
+#[get("/scraped-items")]
+pub async fn get_scraped_items(
+    ai_service: &State<Arc<AIService>>,
+) -> Result<Json<Vec<serde_json::Value>>, rocket::http::Status> {
+    match ai_service.get_scraped_items().await {
+        Ok(items) => Ok(Json(items)),
+        Err(e) => {
+            log::error!("Failed to get scraped items: {}", e);
+            Err(rocket::http::Status::InternalServerError)
+        }
+    }
 }
 
 #[post("/crawl", data = "<params>")]
