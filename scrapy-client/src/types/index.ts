@@ -1,11 +1,11 @@
 import {
   ConnectionStatusSchema,
   ErrorMessageSchema,
-  JsonPayloadSchema,
   MessageHistorySchema,
   MessageTypeSchema,
   ProgressMessageSchema,
   RawMessageSchema,
+  ScrapedItemsSchema,
   scrapeSchema,
   ScrapingResultMessageSchema,
   SuccessMessageSchema,
@@ -32,7 +32,7 @@ export interface ScrapingResult {
   } | null;
 }
 
-export type JsonPayload = z.infer<typeof JsonPayloadSchema>;
+export type ScrapedItems = z.infer<typeof ScrapedItemsSchema>;
 
 export type MessageType = z.infer<typeof MessageTypeSchema>;
 export type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;

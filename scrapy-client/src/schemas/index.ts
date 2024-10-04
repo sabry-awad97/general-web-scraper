@@ -13,7 +13,7 @@ const JsonValueSchema = z.union([
 ]);
 
 // Reusable schemas
-export const JsonPayloadSchema = z.array(z.record(JsonValueSchema));
+export const ScrapedItemsSchema = z.array(z.record(JsonValueSchema));
 
 export const MessageTypeSchema = z.enum([
   "error",
@@ -38,7 +38,7 @@ export const ErrorMessageSchema = IncomingMessageSchema.extend({
 
 export const SuccessMessageSchema = IncomingMessageSchema.extend({
   type: z.literal("success"),
-  payload: JsonPayloadSchema,
+  payload: ScrapedItemsSchema,
   timestamp: z.number(),
 });
 

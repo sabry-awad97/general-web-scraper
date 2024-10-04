@@ -1,5 +1,5 @@
-import { JsonPayloadSchema, MessageSchema } from "@/schemas";
-import { JsonPayload, MessageType } from "@/types";
+import { MessageSchema, ScrapedItemsSchema } from "@/schemas";
+import { MessageType, ScrapedItems } from "@/types";
 import JSON5 from "json5";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -12,7 +12,7 @@ interface EventSourceOptions {
 export function useEventSource(url: string, options: EventSourceOptions = {}) {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [receivedJsonData, setReceivedJsonData] = useState<JsonPayload>([]);
+  const [receivedJsonData, setReceivedJsonData] = useState<ScrapedItems>([]);
   const [lastEventId, setLastEventId] = useState<string | null>(null);
   const [messageHistory, setMessageHistory] = useState<
     Array<{ type: MessageType; payload: string }>
@@ -35,7 +35,7 @@ export function useEventSource(url: string, options: EventSourceOptions = {}) {
 
       switch (parsedMessage.type) {
         case MessageType.Success: {
-          const jsonPayload = JsonPayloadSchema.parse(
+          const jsonPayload = ScrapedItemsSchema.parse(
             JSON5.parse(parsedMessage.payload),
           );
           setReceivedJsonData(jsonPayload);

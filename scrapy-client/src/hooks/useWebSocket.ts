@@ -2,9 +2,9 @@ import {
   ConnectionStatusSchema,
   ErrorMessageSchema,
   IncomingMessageSchema,
-  JsonPayloadSchema,
   ProgressMessageSchema,
   RawMessageSchema,
+  ScrapedItemsSchema,
   ScrapingResultMessageSchema,
   SuccessMessageSchema,
   WarningMessageSchema,
@@ -97,7 +97,7 @@ export function useWebSocket(url: string) {
           case "success": {
             const successMessage = SuccessMessageSchema.parse({
               type: parsedMessage.type,
-              payload: JsonPayloadSchema.parse(
+              payload: ScrapedItemsSchema.parse(
                 JSON.parse(parsedMessage.payload),
               ),
               metadata: parsedMessage.metadata,
