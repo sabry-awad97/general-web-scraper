@@ -105,6 +105,7 @@ export function useWebSocket(url: string) {
                 JSON.parse(parsedMessage.payload),
               ),
               metadata: parsedMessage.metadata,
+              timestamp: Date.now(),
             });
 
             dispatch({
@@ -119,7 +120,10 @@ export function useWebSocket(url: string) {
           }
 
           case "error": {
-            const errorMessage = ErrorMessageSchema.parse(parsedMessage);
+            const errorMessage = ErrorMessageSchema.parse({
+              ...parsedMessage,
+              timestamp: Date.now(),
+            });
 
             dispatch({
               type: "ADD_MESSAGE",
@@ -132,7 +136,10 @@ export function useWebSocket(url: string) {
           }
 
           case "warning": {
-            const warningMessage = WarningMessageSchema.parse(parsedMessage);
+            const warningMessage = WarningMessageSchema.parse({
+              ...parsedMessage,
+              timestamp: Date.now(),
+            });
 
             dispatch({
               type: "ADD_MESSAGE",
@@ -145,7 +152,10 @@ export function useWebSocket(url: string) {
           }
 
           case "progress": {
-            const progressMessage = ProgressMessageSchema.parse(parsedMessage);
+            const progressMessage = ProgressMessageSchema.parse({
+              ...parsedMessage,
+              timestamp: Date.now(),
+            });
 
             dispatch({
               type: "ADD_MESSAGE",
@@ -158,7 +168,10 @@ export function useWebSocket(url: string) {
           }
 
           case "raw": {
-            const rawMessage = RawMessageSchema.parse(parsedMessage);
+            const rawMessage = RawMessageSchema.parse({
+              ...parsedMessage,
+              timestamp: Date.now(),
+            });
 
             dispatch({
               type: "ADD_MESSAGE",
@@ -172,8 +185,10 @@ export function useWebSocket(url: string) {
 
           case "scrapingResult":
             {
-              const scrapingResultMessage =
-                ScrapingResultMessageSchema.parse(parsedMessage);
+              const scrapingResultMessage = ScrapingResultMessageSchema.parse({
+                ...parsedMessage,
+                timestamp: Date.now(),
+              });
 
               dispatch({
                 type: "ADD_MESSAGE",
@@ -229,7 +244,7 @@ export function useWebSocket(url: string) {
 
   const getMessagesByType = useCallback(
     <T extends MessageType>(type: T): Array<MessageTypeMap[T]> => {
-      return state.messageHistory[type] as Array<MessageTypeMap[T]>;
+      return state.messageHistory[type] as Array<MessageTypeMap[T]> || [];
     },
     [state.messageHistory],
   );
@@ -245,8 +260,18 @@ export function useWebSocket(url: string) {
     dispatch({ type: "CLEAR_HISTORY" });
   }, [dispatch]);
 
+  const sortedMessages = [
+    ...getMessagesByType("success"),
+    ...getMessagesByType("error"),
+    ...getMessagesByType("warning"),
+    ...getMessagesByType("progress"),
+    ...getMessagesByType("raw"),
+    ...getMessagesByType("scrapingResult"),
+  ].sort((a, b) => b.timestamp - a.timestamp);
+
   return {
     messageHistory: state.messageHistory,
+    sortedMessages,
     sendMessage: sendMessageCallback,
     connectionStatus,
     lastMessage,

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AlertManager from "./components/alert-manager";
 import ConnectionStatus from "./components/connection-status";
+import MessagePreview from "./components/message-preview";
 import ResultsDisplay from "./components/results-display";
 import Sidebar from "./components/sidebar";
 import WelcomeCard from "./components/welcome-card";
@@ -12,7 +13,7 @@ import { generateMockResults } from "./lib/constants";
 import { ScrapeSchema, ScrapingResult } from "./types";
 
 function App() {
-  const { isConnected, connectionError, getMessagesByType } =
+  const { isConnected, connectionError, getMessagesByType, sortedMessages } =
     useWebSocket("/api/ws");
 
   const successMessages = getMessagesByType("success");
@@ -72,6 +73,10 @@ function App() {
         ) : (
           <WelcomeCard />
         )}
+
+        <div className="mt-6">
+          <MessagePreview messages={sortedMessages} />
+        </div>
       </main>
     </div>
   );

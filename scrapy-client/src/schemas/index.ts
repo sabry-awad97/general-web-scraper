@@ -33,27 +33,33 @@ export const IncomingMessageSchema = z.object({
 // Specific message schemas
 export const ErrorMessageSchema = IncomingMessageSchema.extend({
   type: z.literal("error"),
+  timestamp: z.number(),
 });
 
 export const SuccessMessageSchema = IncomingMessageSchema.extend({
   type: z.literal("success"),
   payload: JsonPayloadSchema,
+  timestamp: z.number(),
 });
 
 export const WarningMessageSchema = IncomingMessageSchema.extend({
   type: z.literal("warning"),
+  timestamp: z.number(),
 });
 
 export const ProgressMessageSchema = IncomingMessageSchema.extend({
   type: z.literal("progress"),
+  timestamp: z.number(),
 });
 
 export const RawMessageSchema = IncomingMessageSchema.extend({
   type: z.literal("raw"),
+  timestamp: z.number(),
 });
 
 export const ScrapingResultMessageSchema = IncomingMessageSchema.extend({
   type: z.literal("scrapingResult"),
+  timestamp: z.number(),
 });
 
 // Main schemas
