@@ -9,13 +9,13 @@ import WelcomeCard from "./components/welcome-card";
 import { useCrawl } from "./hooks/useCrawl";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { generateMockResults } from "./lib/constants";
-import { ScrapeSchema, ScrapingResult, SuccessMessage } from "./types";
+import { ScrapeSchema, ScrapingResult } from "./types";
 
 function App() {
   const { isConnected, connectionError, getMessagesByType } =
     useWebSocket("/api/ws");
 
-  const successMessages = getMessagesByType("success") as SuccessMessage[];
+  const successMessages = getMessagesByType("success");
 
   const payload = successMessages[0]?.payload || [];
 

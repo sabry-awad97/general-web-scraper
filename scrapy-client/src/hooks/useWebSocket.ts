@@ -9,11 +9,30 @@ import {
   SuccessMessageSchema,
   WarningMessageSchema,
 } from "@/schemas";
-import { MessageHistory, MessageType, WebSocketMessage } from "@/types";
+import {
+  ErrorMessage,
+  MessageHistory,
+  MessageType,
+  ProgressMessage,
+  RawMessage,
+  ScrapingResultMessage,
+  SuccessMessage,
+  WarningMessage,
+  WebSocketMessage,
+} from "@/types";
 import { useCallback } from "react";
 import useReactWebSocket, { ReadyState } from "react-use-websocket";
 import { toast } from "sonner";
 import { useImmerReducer } from "use-immer";
+
+type MessageTypeMap = {
+  error: ErrorMessage;
+  success: SuccessMessage;
+  warning: WarningMessage;
+  progress: ProgressMessage;
+  scrapingResult: ScrapingResultMessage;
+  raw: RawMessage;
+};
 
 // Define the state and action types
 type State = {
@@ -209,8 +228,8 @@ export function useWebSocket(url: string) {
   );
 
   const getMessagesByType = useCallback(
-    (type: MessageType) => {
-      return state.messageHistory[type];
+    <T extends MessageType>(type: T): Array<MessageTypeMap[T]> => {
+      return state.messageHistory[type] as Array<MessageTypeMap[T]>;
     },
     [state.messageHistory],
   );

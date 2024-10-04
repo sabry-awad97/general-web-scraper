@@ -5,7 +5,9 @@ import {
   MessageHistorySchema,
   MessageTypeSchema,
   ProgressMessageSchema,
+  RawMessageSchema,
   scrapeSchema,
+  ScrapingResultMessageSchema,
   SuccessMessageSchema,
   WarningMessageSchema,
   WebSocketMessageSchema,
@@ -40,3 +42,5 @@ export type ErrorMessage = z.infer<typeof ErrorMessageSchema>;
 export type SuccessMessage = z.infer<typeof SuccessMessageSchema>;
 export type WarningMessage = z.infer<typeof WarningMessageSchema>;
 export type ProgressMessage = z.infer<typeof ProgressMessageSchema>;
+export type ScrapingResultMessage = z.infer<typeof ScrapingResultMessageSchema>;
+export type RawMessage = z.infer<typeof RawMessageSchema>;
