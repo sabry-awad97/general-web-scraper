@@ -9,6 +9,7 @@ import {
   scrapeSchema,
   ScrapingResultMessageSchema,
   SuccessMessageSchema,
+  themeSchema,
   WarningMessageSchema,
   WebSocketMessageSchema,
 } from "@/schemas";
@@ -44,3 +45,5 @@ export type WarningMessage = z.infer<typeof WarningMessageSchema>;
 export type ProgressMessage = z.infer<typeof ProgressMessageSchema>;
 export type ScrapingResultMessage = z.infer<typeof ScrapingResultMessageSchema>;
 export type RawMessage = z.infer<typeof RawMessageSchema>;
+
+export type Theme = z.infer<typeof themeSchema>;

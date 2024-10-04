@@ -1,15 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useWebSocketContext } from "@/hooks/useWebSocketContext";
 import { cn } from "@/lib/utils";
 import { MessageType, WebSocketMessage } from "@/types";
 import React from "react";
 
-interface MessagePreviewProps {
-  messages: WebSocketMessage[];
-}
-
-const MessagePreview: React.FC<MessagePreviewProps> = ({ messages }) => {
+const MessagePreview = () => {
+  const { sortedMessages: messages } = useWebSocketContext();
   return (
     <Card className="h-[400px] w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <CardHeader>

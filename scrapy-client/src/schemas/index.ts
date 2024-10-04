@@ -94,3 +94,5 @@ export const MessageHistorySchema = z.record(
   MessageTypeSchema,
   z.array(WebSocketMessageSchema),
 );
+
+export const themeSchema = z.enum(["light", "dark", "system"]);

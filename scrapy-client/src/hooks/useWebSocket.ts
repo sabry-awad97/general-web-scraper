@@ -86,8 +86,6 @@ export function useWebSocket(url: string) {
     connectionError: null,
   });
 
-  console.log({ state });
-
   const { sendMessage, lastMessage, readyState } = useReactWebSocket(url, {
     onMessage: (event) => {
       try {
@@ -97,8 +95,6 @@ export function useWebSocket(url: string) {
 
         switch (parsedMessage.type) {
           case "success": {
-            dispatch({ type: "CLEAR_MESSAGES", payload: parsedMessage.type });
-
             const successMessage = SuccessMessageSchema.parse({
               type: parsedMessage.type,
               payload: JsonPayloadSchema.parse(
@@ -244,7 +240,7 @@ export function useWebSocket(url: string) {
 
   const getMessagesByType = useCallback(
     <T extends MessageType>(type: T): Array<MessageTypeMap[T]> => {
-      return state.messageHistory[type] as Array<MessageTypeMap[T]> || [];
+      return (state.messageHistory[type] as Array<MessageTypeMap[T]>) || [];
     },
     [state.messageHistory],
   );
@@ -260,7 +256,7 @@ export function useWebSocket(url: string) {
     dispatch({ type: "CLEAR_HISTORY" });
   }, [dispatch]);
 
-  const sortedMessages = [
+  const sortedMessages: WebSocketMessage[] = [
     ...getMessagesByType("success"),
     ...getMessagesByType("error"),
     ...getMessagesByType("warning"),

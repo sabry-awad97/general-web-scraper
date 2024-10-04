@@ -11,9 +11,10 @@ import { useCrawl } from "./hooks/useCrawl";
 import { useWebSocketContext } from "./hooks/useWebSocketContext";
 import { generateMockResults } from "./lib/constants";
 import { ScrapeSchema, ScrapingResult } from "./types";
+import { ThemeToggle } from "./components/theme-toggle";
 
 function App() {
-  const { isConnected, connectionError, getMessagesByType, sortedMessages } =
+  const { isConnected, connectionError, getMessagesByType } =
     useWebSocketContext();
 
   const successMessages = getMessagesByType("success");
@@ -44,18 +45,15 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    document.body.classList.add("dark");
-  }, []);
-
   return (
     <div className="flex h-screen">
       <Sidebar results={results} onSubmit={onSubmit} isPending={isPending} />
 
       <main className="flex-1 p-6 overflow-auto">
-        <h1 className="mb-6 text-4xl font-bold text-white">
-          Universal Web Scraper 🦑
-        </h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-4xl font-bold">Universal Web Scraper 🦑</h1>
+          <ThemeToggle />
+        </div>
 
         <ConnectionStatus
           isConnected={isConnected}
@@ -75,7 +73,7 @@ function App() {
         )}
 
         <div className="mt-6">
-          <MessagePreview messages={sortedMessages} />
+          <MessagePreview />
         </div>
       </main>
     </div>
