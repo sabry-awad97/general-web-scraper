@@ -7,13 +7,21 @@ import ResultsDisplay from "./components/results-display";
 import Sidebar from "./components/sidebar";
 import WelcomeCard from "./components/welcome-card";
 import { useCrawl } from "./hooks/useCrawl";
-import { useEventSource } from "./hooks/useEventSource";
+import { useWebSocket } from "./hooks/useWebSocket";
 import { generateMockResults } from "./lib/constants";
-import { ScrapeSchema, ScrapingResult } from "./types";
+import { ScrapeSchema, ScrapingResult, SuccessMessage } from "./types";
 
 function App() {
-  const { receivedJsonData, connectionError, isConnected } =
-    useEventSource("/api/events");
+  const { isConnected, connectionError, getMessagesByType } =
+    useWebSocket("/api/ws");
+
+  const successMessages = getMessagesByType("success") as SuccessMessage[];
+
+  const payload = successMessages[0]?.payload || [];
+
+  useEffect(() => {
+    console.log({ successMessages });
+  }, [successMessages]);
 
   const [results, setResults] = useState<ScrapingResult | null>(null);
   const {
@@ -43,7 +51,7 @@ function App() {
     <div className="flex h-screen">
       <Sidebar results={results} onSubmit={onSubmit} isPending={isPending} />
 
-      <main className="flex-1 overflow-auto p-6">
+      <main className="flex-1 p-6 overflow-auto">
         <h1 className="mb-6 text-4xl font-bold text-white">
           Universal Web Scraper 🦑
         </h1>
@@ -60,10 +68,7 @@ function App() {
         />
 
         {isSuccess && results ? (
-          <ResultsDisplay
-            results={results}
-            receivedJsonData={receivedJsonData}
-          />
+          <ResultsDisplay results={results} receivedJsonData={payload} />
         ) : (
           <WelcomeCard />
         )}

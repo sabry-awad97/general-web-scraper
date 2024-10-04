@@ -4,8 +4,6 @@ use rocket::tokio::sync::broadcast::{channel, Receiver, Sender};
 use rocket::tokio::sync::Mutex;
 use std::sync::Arc;
 
-
-
 pub struct WebSocketService {
     sender: Arc<Mutex<Sender<WebSocketMessage>>>,
     _receiver: Receiver<WebSocketMessage>, // Keep a reference to prevent the channel from closing

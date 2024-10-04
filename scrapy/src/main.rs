@@ -41,13 +41,7 @@ fn rocket() -> _ {
     rocket::build()
         .mount(
             "/api",
-            routes![
-                routes::index,
-                routes::crawl,
-                routes::events,
-                routes::websocket,
-                routes::websocket_select,
-            ],
+            routes![routes::index, routes::crawl, routes::websocket,],
         )
         .mount("/", FileServer::from(static_dir))
         .manage(websocket_service)

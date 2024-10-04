@@ -1,4 +1,15 @@
-import { JsonPayloadSchema, scrapeSchema } from "@/schemas";
+import {
+  ConnectionStatusSchema,
+  ErrorMessageSchema,
+  JsonPayloadSchema,
+  MessageHistorySchema,
+  MessageTypeSchema,
+  ProgressMessageSchema,
+  scrapeSchema,
+  SuccessMessageSchema,
+  WarningMessageSchema,
+  WebSocketMessageSchema,
+} from "@/schemas";
 import { z } from "zod";
 
 export type ScrapeSchema = z.infer<typeof scrapeSchema>;
@@ -20,17 +31,12 @@ export interface ScrapingResult {
 
 export type JsonPayload = z.infer<typeof JsonPayloadSchema>;
 
-export enum MessageType {
-  Progress = "progress",
-  Raw = "raw",
-  ScrapingResult = "scrapingResult",
-  Error = "error",
-  Success = "success",
-  Warning = "warning",
-}
+export type MessageType = z.infer<typeof MessageTypeSchema>;
+export type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
+export type MessageHistory = z.infer<typeof MessageHistorySchema>;
+export type ConnectionStatus = z.infer<typeof ConnectionStatusSchema>;
 
-export interface WebSocketMessage {
-  type: MessageType;
-  payload: string;
-  metadata?: unknown;
-}
+export type ErrorMessage = z.infer<typeof ErrorMessageSchema>;
+export type SuccessMessage = z.infer<typeof SuccessMessageSchema>;
+export type WarningMessage = z.infer<typeof WarningMessageSchema>;
+export type ProgressMessage = z.infer<typeof ProgressMessageSchema>;

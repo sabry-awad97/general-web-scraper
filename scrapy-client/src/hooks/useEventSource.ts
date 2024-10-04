@@ -1,13 +1,7 @@
-import { JsonPayloadSchema } from "@/schemas";
+import { JsonPayloadSchema, MessageSchema } from "@/schemas";
 import { JsonPayload, MessageType } from "@/types";
 import JSON5 from "json5";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { z } from "zod";
-
-const MessageSchema = z.object({
-  type: z.nativeEnum(MessageType),
-  payload: z.string(),
-});
 
 interface EventSourceOptions {
   reconnectInterval?: number;
