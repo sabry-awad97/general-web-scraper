@@ -8,13 +8,13 @@ import ResultsDisplay from "./components/results-display";
 import Sidebar from "./components/sidebar";
 import WelcomeCard from "./components/welcome-card";
 import { useCrawl } from "./hooks/useCrawl";
-import { useWebSocket } from "./hooks/useWebSocket";
+import { useWebSocketContext } from "./hooks/useWebSocketContext";
 import { generateMockResults } from "./lib/constants";
 import { ScrapeSchema, ScrapingResult } from "./types";
 
 function App() {
   const { isConnected, connectionError, getMessagesByType, sortedMessages } =
-    useWebSocket("/api/ws");
+    useWebSocketContext();
 
   const successMessages = getMessagesByType("success");
 
