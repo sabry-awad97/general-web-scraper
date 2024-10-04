@@ -2,9 +2,9 @@ use crate::crawler::Crawler;
 use rocket::{fs::FileServer, routes};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use services::{AIService, CrawlerService, WebSocketService};
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use utils::find_static_dir;
 
 mod ai;
 mod constants;
@@ -18,6 +18,8 @@ mod utils;
 
 #[rocket::launch]
 fn rocket() -> _ {
+    dotenvy::dotenv().ok();
+
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let websocket_service = Arc::new(WebSocketService::new(1024));
@@ -43,7 +45,13 @@ fn rocket() -> _ {
     .to_cors()
     .expect("Failed to create CORS");
 
-    let static_dir = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static"));
+    let static_dir = find_static_dir();
+
+    if !static_dir.is_dir() {
+        panic!("Static directory does not exist: {:?}", static_dir);
+    }
+
+    log::info!("Using static directory: {:?}", static_dir);
 
     rocket::build()
         .mount(
