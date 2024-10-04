@@ -1,11 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
 import api from "../api";
 
-export function useClearScrapedItems() {
+export function useClearScrapingResult() {
   return useMutation({
-    mutationKey: ["clear-scraped-items"],
+    mutationKey: ["clear-scraping-result"],
     mutationFn: () => {
-      return api.clearScrapedItems();
+      return api.clearScrapingResult();
     },
   });
 }

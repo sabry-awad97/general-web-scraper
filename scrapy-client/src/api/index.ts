@@ -87,15 +87,15 @@ const api = {
       throw error;
     }
   },
-  clearScrapedItems: async () => {
+  clearScrapingResult: async () => {
     try {
-      const response = await apiClient.post("/clear-scraped-items");
+      const response = await apiClient.post("/clear-scraping-result");
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
         throw new Error(
           error.response?.data?.message ||
-            "An error occurred while clearing scraped items",
+            "An error occurred while clearing scraping result",
         );
       }
       throw error;

@@ -33,6 +33,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useClearScrapingResult } from "@/hooks/useClearScrapingResult";
 import { useClipboard } from "@/hooks/useClipboard";
 import { secureStorage } from "@/lib/secure-storage";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 interface Props {
   results: ScrapingResult | null;
@@ -71,6 +73,8 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
   const [showLockDialog, setShowLockDialog] = useState(false);
   const [lockPassword, setLockPassword] = useState("");
   const { copyToClipboard, isCopied } = useClipboard();
+  const { mutateAsync: clearScrapingResult, isPending: isClearing } =
+    useClearScrapingResult();
 
   const form = useForm<ScrapeSchema>({
     resolver: zodResolver(scrapeSchema),
@@ -130,10 +134,26 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
     }
   };
 
+  const handleReset = () => {
+    form.reset({
+      ...form.getValues(),
+      url: "",
+      tags: [],
+    });
+
+    const promise = clearScrapingResult();
+
+    toast.promise(promise, {
+      loading: "Resetting...",
+      success: "Reset successful",
+      error: "Failed to reset",
+    });
+  };
+
   return (
     <ScrollArea className="h-screen w-[24rem]">
-      <div className="p-4 bg-gradient-to-b from-secondary to-background">
-        <div className="flex items-center mb-4 space-x-3">
+      <div className="bg-gradient-to-b from-secondary to-background p-4">
+        <div className="mb-4 flex items-center space-x-3">
           <svg
             width="32"
             height="32"
@@ -164,7 +184,7 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
               strokeLinejoin="round"
             />
           </svg>
-          <h1 className="text-xl font-bold text-transparent bg-gradient-to-r from-primary to-secondary bg-clip-text">
+          <h1 className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-xl font-bold text-transparent">
             Scraper Settings
           </h1>
         </div>
@@ -211,10 +231,13 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="w-3 h-3 ml-1 text-muted-foreground" />
+                          <Info className="ml-1 h-3 w-3 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Your API key is securely encrypted and stored locally.</p>
+                          <p>
+                            Your API key is securely encrypted and stored
+                            locally.
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -228,11 +251,11 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
                         onChange={(e) => handleApiKeyChange(e.target.value)}
                         className={cn(
                           "pr-24 transition-all duration-300",
-                          isApiKeyLocked && "bg-muted"
+                          isApiKeyLocked && "bg-muted",
                         )}
                         disabled={isApiKeyLocked}
                       />
-                      <div className="absolute top-0 right-0 flex h-full">
+                      <div className="absolute right-0 top-0 flex h-full">
                         <ApiKeyActions
                           showApiKey={showApiKey}
                           setShowApiKey={setShowApiKey}
@@ -276,7 +299,9 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
                       className="transition-all duration-300"
                     />
                   </FormControl>
-                  <FormDescription className="text-xs">Enter the URL to scrape</FormDescription>
+                  <FormDescription className="text-xs">
+                    Enter the URL to scrape
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -287,10 +312,14 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
               control={form.control}
               name="enableScraping"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between p-3 transition-all duration-300 border rounded-md shadow-sm hover:shadow-md">
+                <FormItem className="flex flex-row items-center justify-between rounded-md border p-3 shadow-sm transition-all duration-300 hover:shadow-md">
                   <div>
-                    <FormLabel className="text-sm font-medium">Enable Scraping</FormLabel>
-                    <FormDescription className="text-xs">Specify fields to extract</FormDescription>
+                    <FormLabel className="text-sm font-medium">
+                      Enable Scraping
+                    </FormLabel>
+                    <FormDescription className="text-xs">
+                      Specify fields to extract
+                    </FormDescription>
                   </div>
                   <FormControl>
                     <Switch
@@ -316,32 +345,39 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
                     name="tags"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Fields to Extract</FormLabel>
+                        <FormLabel className="text-sm font-medium">
+                          Fields to Extract
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Add field and press Enter"
                             onKeyDown={(e) => {
                               if (e.key === "Enter" && e.currentTarget.value) {
                                 e.preventDefault();
-                                field.onChange([...field.value, e.currentTarget.value]);
+                                field.onChange([
+                                  ...field.value,
+                                  e.currentTarget.value,
+                                ]);
                                 e.currentTarget.value = "";
                               }
                             }}
                             className="transition-all duration-300"
                           />
                         </FormControl>
-                        <div className="flex flex-wrap gap-1 mt-2">
+                        <div className="mt-2 flex flex-wrap gap-1">
                           {field.value?.map((tag, index) => (
                             <Badge
                               key={index}
                               variant="secondary"
-                              className="flex items-center text-xs transition-all duration-300 cursor-pointer hover:bg-primary hover:text-primary-foreground"
+                              className="flex cursor-pointer items-center text-xs transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
                             >
                               {tag}
                               <X
-                                className="w-3 h-3 ml-1"
+                                className="ml-1 h-3 w-3"
                                 onClick={() => {
-                                  field.onChange(field.value?.filter((t) => t !== tag));
+                                  field.onChange(
+                                    field.value?.filter((t) => t !== tag),
+                                  );
                                 }}
                               />
                             </Badge>
@@ -360,10 +396,14 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
               control={form.control}
               name="enablePagination"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between p-3 transition-all duration-300 border rounded-md shadow-sm hover:shadow-md">
+                <FormItem className="flex flex-row items-center justify-between rounded-md border p-3 shadow-sm transition-all duration-300 hover:shadow-md">
                   <div>
-                    <FormLabel className="text-sm font-medium">Enable Pagination</FormLabel>
-                    <FormDescription className="text-xs">Specify pagination details</FormDescription>
+                    <FormLabel className="text-sm font-medium">
+                      Enable Pagination
+                    </FormLabel>
+                    <FormDescription className="text-xs">
+                      Specify pagination details
+                    </FormDescription>
                   </div>
                   <FormControl>
                     <Switch
@@ -389,7 +429,9 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
                     name="paginationDetails"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Pagination Details</FormLabel>
+                        <FormLabel className="text-sm font-medium">
+                          Pagination Details
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="E.g., Next button selector"
@@ -414,7 +456,7 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
               >
                 {isPending ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Scraping...
                   </>
                 ) : (
@@ -425,15 +467,9 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
                 type="button"
                 variant="outline"
                 className="flex-1 transition-all duration-300"
-                onClick={() => {
-                  form.reset({
-                    ...form.getValues(),
-                    url: "",
-                    tags: [],
-                  });
-                }}
+                onClick={handleReset}
               >
-                Reset
+                {isClearing ? "Resetting..." : "Reset Results"}
               </Button>
             </div>
           </form>
@@ -449,13 +485,24 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
               transition={{ duration: 0.3 }}
             >
               <Card className="mt-4 overflow-hidden">
-                <CardHeader className="py-2 bg-primary text-primary-foreground">
-                  <CardTitle className="text-sm font-medium">Scraping Summary</CardTitle>
+                <CardHeader className="bg-primary py-2 text-primary-foreground">
+                  <CardTitle className="text-sm font-medium">
+                    Scraping Summary
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="p-3 space-y-1 text-sm">
-                  <SummaryItem label="Input Tokens" value={results.inputTokens.toString()} />
-                  <SummaryItem label="Output Tokens" value={results.outputTokens.toString()} />
-                  <SummaryItem label="Total Cost" value={`$${results.totalCost.toFixed(4)}`} />
+                <CardContent className="space-y-1 p-3 text-sm">
+                  <SummaryItem
+                    label="Input Tokens"
+                    value={results.inputTokens.toString()}
+                  />
+                  <SummaryItem
+                    label="Output Tokens"
+                    value={results.outputTokens.toString()}
+                  />
+                  <SummaryItem
+                    label="Total Cost"
+                    value={`$${results.totalCost.toFixed(4)}`}
+                  />
                 </CardContent>
               </Card>
             </motion.div>
@@ -498,9 +545,9 @@ const ApiKeyActions = ({
     <IconButton
       icon={
         showApiKey ? (
-          <EyeOff className="w-4 h-4" />
+          <EyeOff className="h-4 w-4" />
         ) : (
-          <Eye className="w-4 h-4" />
+          <Eye className="h-4 w-4" />
         )
       }
       onClick={() => setShowApiKey(!showApiKey)}
@@ -509,9 +556,9 @@ const ApiKeyActions = ({
     <IconButton
       icon={
         isCopied ? (
-          <Check className="w-4 h-4 text-green-500" />
+          <Check className="h-4 w-4 text-green-500" />
         ) : (
-          <Copy className="w-4 h-4" />
+          <Copy className="h-4 w-4" />
         )
       }
       onClick={copyToClipboard}
@@ -520,9 +567,9 @@ const ApiKeyActions = ({
     <IconButton
       icon={
         isApiKeyLocked ? (
-          <Lock className="w-4 h-4" />
+          <Lock className="h-4 w-4" />
         ) : (
-          <Unlock className="w-4 h-4" />
+          <Unlock className="h-4 w-4" />
         )
       }
       onClick={() => setShowLockDialog(true)}

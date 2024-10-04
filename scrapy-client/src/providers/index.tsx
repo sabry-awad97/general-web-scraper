@@ -11,7 +11,7 @@ const Providers = ({ children }: Required<PropsWithChildren>) => (
       <ReactQueryProvider>
         {children}
         <ReactQueryDevtools />
-        <Toaster />
+        <Toaster richColors expand />
       </ReactQueryProvider>
     </WebSocketProvider>
   </ThemeProvider>

@@ -105,11 +105,12 @@ pub async fn get_scraping_result(
     }
 }
 
-#[post("/clear-scraped-items")]
-pub async fn clear_scraped_items(
-    _ai_service: &State<Arc<AIService>>,
-) -> Result<(), rocket::http::Status> {
-    Ok(())
+#[post("/clear-scraping-result")]
+pub async fn clear_scraping_result(
+    ai_service: &State<Arc<AIService>>,
+) -> Result<Json<()>, rocket::http::Status> {
+    ai_service.clear_current_scraping_result().await;
+    Ok(Json(()))
 }
 
 #[post("/crawl", data = "<params>")]

@@ -1,4 +1,4 @@
-import { MessageSchema, ScrapedItemsSchema } from "@/schemas";
+import { IncomingMessageSchema, ScrapedItemsSchema } from "@/schemas";
 import { MessageType, ScrapedItems } from "@/types";
 import JSON5 from "json5";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29,31 +29,33 @@ export function useEventSource(url: string, options: EventSourceOptions = {}) {
 
   const handleIncomingMessage = useCallback((event: MessageEvent<string>) => {
     try {
-      const parsedMessage = MessageSchema.parse(JSON5.parse(event.data));
+      const parsedMessage = IncomingMessageSchema.parse(
+        JSON5.parse(event.data),
+      );
 
       console.log("Received message:", parsedMessage.type);
 
       switch (parsedMessage.type) {
-        case MessageType.Success: {
+        case "success": {
           const jsonPayload = ScrapedItemsSchema.parse(
             JSON5.parse(parsedMessage.payload),
           );
           setReceivedJsonData(jsonPayload);
           break;
         }
-        case MessageType.Progress: {
+        case "progress": {
           console.log("Received progress:", parsedMessage.payload);
           break;
         }
-        case MessageType.Error: {
+        case "error": {
           console.error("Received error:", parsedMessage.payload);
           break;
         }
-        case MessageType.Warning: {
+        case "warning": {
           console.warn("Received warning:", parsedMessage.payload);
           break;
         }
-        case MessageType.Raw: {
+        case "raw": {
           console.log("Received raw:", parsedMessage.payload);
           break;
         }

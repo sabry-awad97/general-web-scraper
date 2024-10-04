@@ -23,7 +23,7 @@ build: build-frontend build-backend
 # Build Rust backend
 .PHONY: build-backend
 build-backend:
-	cd $(BACKEND_DIR) && $(CARGO) build
+	cd $(BACKEND_DIR) && $(CARGO) build --release
 
 # Build TypeScript/React frontend
 .PHONY: build-frontend

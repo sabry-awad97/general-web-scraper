@@ -366,4 +366,9 @@ impl AIService {
         let result = self.current_scraping_result.lock().await;
         result.clone()
     }
+
+    pub async fn clear_current_scraping_result(&self) {
+        let mut result = self.current_scraping_result.lock().await;
+        *result = None;
+    }
 }

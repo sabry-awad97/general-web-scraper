@@ -53,7 +53,7 @@ fn rocket() -> _ {
                 routes::crawl,
                 routes::websocket,
                 routes::get_scraping_result,
-                routes::clear_scraped_items,
+                routes::clear_scraping_result,
                 routes::get_models
             ],
         )

@@ -7,7 +7,7 @@ import ResultsDisplay from "./components/results-display";
 import Sidebar from "./components/sidebar";
 import { ThemeToggle } from "./components/theme-toggle";
 import WelcomeCard from "./components/welcome-card";
-import { useClearScrapedItems } from "./hooks/useClearScrapedItems";
+import { useClearScrapingResult } from "./hooks/useClearScrapingResult";
 import { useCrawl } from "./hooks/useCrawl";
 import { useModels } from "./hooks/useModels";
 import { useScrapingResult } from "./hooks/useScrapingResult";
@@ -26,14 +26,14 @@ function App() {
     error: crawlError,
   } = useCrawl();
 
-  const { mutateAsync: clearScrapedItems } = useClearScrapedItems();
+  const { mutateAsync: clearScrapingResult } = useClearScrapingResult();
 
   const { data: scrapingResult = null, refetch: refetchScrapingResult } =
     useScrapingResult();
 
   const onSubmit = async (values: ScrapeSchema) => {
     try {
-      await clearScrapedItems();
+      await clearScrapingResult();
       await crawl(values);
       refetchScrapingResult();
       celebrateSuccess();
@@ -51,8 +51,8 @@ function App() {
         isPending={isPending}
       />
 
-      <main className="flex-1 p-6 overflow-auto">
-        <div className="flex items-center justify-between mb-6">
+      <main className="flex-1 overflow-auto p-6">
+        <div className="mb-6 flex items-center justify-between">
           <h1 className="text-4xl font-bold">Universal Web Scraper 🦑</h1>
           <ThemeToggle />
         </div>
