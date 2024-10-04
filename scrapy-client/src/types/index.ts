@@ -8,7 +8,6 @@ export interface ScrapingResult {
   inputTokens: number;
   outputTokens: number;
   totalCost: number;
-  outputFolder: string;
   paginationInfo: {
     pageUrls: string[];
     tokenCounts: {

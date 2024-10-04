@@ -19,17 +19,12 @@ export const MessageDisplay: React.FC<MessageDisplayProps> = ({ messages }) => {
 
 const MessageItem: React.FC<{ message: WebSocketMessage }> = ({ message }) => {
   switch (message.type) {
-    case MessageType.Text:
-    case MessageType.Json:
+    case MessageType.Success:
       return (
         <Alert>
           <AlertTitle>Information</AlertTitle>
           <AlertDescription>
-            {message.type === MessageType.Json ? (
-              <pre>{JSON.stringify(JSON.parse(message.payload), null, 2)}</pre>
-            ) : (
-              message.payload
-            )}
+            <pre>{JSON.stringify(JSON.parse(message.payload), null, 2)}</pre>
           </AlertDescription>
         </Alert>
       );
@@ -38,7 +33,7 @@ const MessageItem: React.FC<{ message: WebSocketMessage }> = ({ message }) => {
         <Alert>
           <AlertTitle>Progress</AlertTitle>
           <AlertDescription>
-            <Progress value={message.metadata?.percentage} className="mt-2" />
+            <Progress value={50} className="mt-2" />
             <p className="mt-2">{message.payload}</p>
           </AlertDescription>
         </Alert>
@@ -47,13 +42,6 @@ const MessageItem: React.FC<{ message: WebSocketMessage }> = ({ message }) => {
       return (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{message.payload}</AlertDescription>
-        </Alert>
-      );
-    case MessageType.Success:
-      return (
-        <Alert variant="default">
-          <AlertTitle>Success</AlertTitle>
           <AlertDescription>{message.payload}</AlertDescription>
         </Alert>
       );

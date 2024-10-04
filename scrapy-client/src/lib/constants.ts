@@ -14,7 +14,6 @@ export function generateMockResults(values: ScrapeSchema): ScrapingResult {
     outputTokens: 500,
     totalCost:
       (PRICING[values.model as keyof typeof PRICING].input * 1500) / 1000,
-    outputFolder: `output/${new Date().toISOString().split("T")[0]}`,
     paginationInfo: values.enablePagination
       ? {
           pageUrls: ["http://example.com/page/1", "http://example.com/page/2"],

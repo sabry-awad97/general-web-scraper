@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -20,19 +20,66 @@ export default function ResultsDisplay({
   results,
   receivedJsonData,
 }: ResultsDisplayProps) {
+  console.log({ results });
+
+  const handleDownloadJSON = () => {
+    const jsonString = JSON.stringify(receivedJsonData, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "scraped_data.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadCSV = () => {
+    if (receivedJsonData && receivedJsonData.length > 0) {
+      const headers = Object.keys(
+        receivedJsonData[0] as Record<string, unknown>,
+      ).join(",");
+      const csvData = receivedJsonData
+        .map((item) =>
+          Object.values(item as Record<string, unknown>)
+            .map((value) =>
+              typeof value === "string"
+                ? `"${value.replace(/"/g, '""')}"`
+                : value,
+            )
+            .join(","),
+        )
+        .join("\n");
+      const csvString = `${headers}\n${csvData}`;
+      const blob = new Blob([csvString], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "scraped_data.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      console.log("No data received");
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <section>
-        <h2 className="mb-2 text-2xl font-semibold text-white">
-          Scraped/Parsed Data
+        <h2 className="mb-3 text-2xl font-semibold text-white">
+          Harvested Insights
         </h2>
         <ScrollArea className="h-[300px] rounded-md border">
           <Table className="w-full whitespace-nowrap">
+            <TableCaption>
+              Comprehensive overview of extracted data
+            </TableCaption>
             <TableHeader>
               <TableRow>
                 {receivedJsonData[0] &&
                   Object.keys(receivedJsonData[0]).map((key) => (
-                    <TableHead key={key}>{key}</TableHead>
+                    <TableHead key={key} className="font-semibold">
+                      {key}
+                    </TableHead>
                   ))}
               </TableRow>
             </TableHeader>
@@ -55,29 +102,32 @@ export default function ResultsDisplay({
       </section>
 
       <section>
-        <h2 className="mb-2 text-2xl font-semibold text-white">
-          Download Options
+        <h2 className="mb-3 text-2xl font-semibold text-white">
+          Data Export Hub
         </h2>
-        <div className="flex gap-2">
-          <Button onClick={() => alert("Downloading JSON...")}>
-            Download JSON
+        <div className="flex gap-3">
+          <Button onClick={handleDownloadJSON} className="px-6">
+            Export as JSON
           </Button>
-          <Button onClick={() => alert("Downloading CSV...")}>
-            Download CSV
+          <Button onClick={handleDownloadCSV} className="px-6">
+            Export as CSV
           </Button>
         </div>
       </section>
 
       {results.paginationInfo && (
         <section>
-          <h2 className="mb-2 text-2xl font-semibold text-white">
-            Pagination Information
+          <h2 className="mb-3 text-2xl font-semibold text-white">
+            Navigation Landscape
           </h2>
           <ScrollArea className="h-[200px] rounded-md border">
             <Table className="w-full whitespace-nowrap">
+              <TableCaption>
+                Discovered page URLs for comprehensive scraping
+              </TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Page URLs</TableHead>
+                  <TableHead className="font-semibold">Page URLs</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -90,25 +140,22 @@ export default function ResultsDisplay({
             </Table>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
-          <div className="mt-2 flex gap-2">
-            <Button onClick={() => alert("Downloading Pagination JSON...")}>
-              Download Pagination JSON
+          <div className="flex gap-3 mt-3">
+            <Button
+              onClick={() => alert("Downloading Pagination JSON...")}
+              className="px-6"
+            >
+              Export Pagination JSON
             </Button>
-            <Button onClick={() => alert("Downloading Pagination CSV...")}>
-              Download Pagination CSV
+            <Button
+              onClick={() => alert("Downloading Pagination CSV...")}
+              className="px-6"
+            >
+              Export Pagination CSV
             </Button>
           </div>
         </section>
       )}
-
-      <Card className="bg-white/10 text-white">
-        <CardHeader>
-          <CardTitle>Output Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Output Folder: {results.outputFolder}</p>
-        </CardContent>
-      </Card>
     </div>
   );
 }

@@ -18,7 +18,7 @@ all: build
 
 # Build both backend and frontend
 .PHONY: build
-build: build-backend build-frontend
+build: build-frontend build-backend
 
 # Build Rust backend
 .PHONY: build-backend
