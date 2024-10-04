@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function WelcomeCard() {
   return (
-    <Card className="bg-white/10 text-white">
+    <Card className="bg-white/10">
       <CardHeader>
         <CardTitle>Welcome to Universal Web Scraper</CardTitle>
       </CardHeader>

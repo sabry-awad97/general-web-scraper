@@ -1,31 +1,20 @@
 import confetti from "canvas-confetti";
-import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AlertManager from "./components/alert-manager";
 import ConnectionStatus from "./components/connection-status";
 import MessagePreview from "./components/message-preview";
 import ResultsDisplay from "./components/results-display";
 import Sidebar from "./components/sidebar";
+import { ThemeToggle } from "./components/theme-toggle";
 import WelcomeCard from "./components/welcome-card";
 import { useCrawl } from "./hooks/useCrawl";
+import { useScrapingResult } from "./hooks/useScrapingResult";
 import { useWebSocketContext } from "./hooks/useWebSocketContext";
-import { generateMockResults } from "./lib/constants";
-import { ScrapeSchema, ScrapingResult } from "./types";
-import { ThemeToggle } from "./components/theme-toggle";
+import { ScrapeSchema } from "./types";
 
 function App() {
-  const { isConnected, connectionError, getMessagesByType } =
-    useWebSocketContext();
+  const { isConnected, connectionError } = useWebSocketContext();
 
-  const successMessages = getMessagesByType("success");
-
-  const payload = successMessages[0]?.payload || [];
-
-  useEffect(() => {
-    console.log({ successMessages });
-  }, [successMessages]);
-
-  const [results, setResults] = useState<ScrapingResult | null>(null);
   const {
     mutateAsync: crawl,
     isPending,
@@ -34,12 +23,14 @@ function App() {
     error: crawlError,
   } = useCrawl();
 
+  const { data: scrapingResult = null, refetch: refetchScrapingResult } =
+    useScrapingResult();
+
   const onSubmit = async (values: ScrapeSchema) => {
     try {
       await crawl(values);
+      refetchScrapingResult();
       celebrateSuccess();
-      const mockResults = generateMockResults(values);
-      setResults(mockResults);
     } catch (error) {
       handleError(error);
     }
@@ -47,7 +38,11 @@ function App() {
 
   return (
     <div className="flex h-screen">
-      <Sidebar results={results} onSubmit={onSubmit} isPending={isPending} />
+      <Sidebar
+        results={scrapingResult}
+        onSubmit={onSubmit}
+        isPending={isPending}
+      />
 
       <main className="flex-1 p-6 overflow-auto">
         <div className="flex items-center justify-between mb-6">
@@ -66,8 +61,8 @@ function App() {
           crawlError={crawlError}
         />
 
-        {isSuccess && results ? (
-          <ResultsDisplay results={results} receivedJsonData={payload} />
+        {isSuccess && scrapingResult ? (
+          <ResultsDisplay results={scrapingResult} />
         ) : (
           <WelcomeCard />
         )}

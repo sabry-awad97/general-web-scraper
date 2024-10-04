@@ -9,21 +9,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { JsonPayload, ScrapingResult } from "../types";
+import { ScrapingResult } from "../types";
 
 interface ResultsDisplayProps {
   results: ScrapingResult;
-  receivedJsonData: JsonPayload;
 }
 
-export default function ResultsDisplay({
-  results,
-  receivedJsonData,
-}: ResultsDisplayProps) {
-  console.log({ results });
-
+export default function ResultsDisplay({ results }: ResultsDisplayProps) {
   const handleDownloadJSON = () => {
-    const jsonString = JSON.stringify(receivedJsonData, null, 2);
+    const jsonString = JSON.stringify(results.allData, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -34,11 +28,11 @@ export default function ResultsDisplay({
   };
 
   const handleDownloadCSV = () => {
-    if (receivedJsonData && receivedJsonData.length > 0) {
+    if (results.allData && results.allData.length > 0) {
       const headers = Object.keys(
-        receivedJsonData[0] as Record<string, unknown>,
+        results.allData[0] as Record<string, unknown>,
       ).join(",");
-      const csvData = receivedJsonData
+      const csvData = results.allData
         .map((item) =>
           Object.values(item as Record<string, unknown>)
             .map((value) =>
@@ -75,8 +69,8 @@ export default function ResultsDisplay({
             </TableCaption>
             <TableHeader>
               <TableRow>
-                {receivedJsonData[0] &&
-                  Object.keys(receivedJsonData[0]).map((key) => (
+                {results.allData[0] &&
+                  Object.keys(results.allData[0]).map((key) => (
                     <TableHead key={key} className="font-semibold">
                       {key}
                     </TableHead>
@@ -84,7 +78,7 @@ export default function ResultsDisplay({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {receivedJsonData.map((item, index) => (
+              {results.allData.map((item, index) => (
                 <TableRow key={index}>
                   {Object.values(item).map((value, valueIndex) => (
                     <TableCell key={valueIndex}>

@@ -23,7 +23,6 @@ pub struct ScrapingResult {
     pub input_tokens: u32,
     pub output_tokens: u32,
     pub total_cost: f64,
-    pub output_folder: String,
     pub pagination_info: Option<PaginationInfo>,
 }
 

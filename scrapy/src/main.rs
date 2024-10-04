@@ -50,7 +50,7 @@ fn rocket() -> _ {
                 routes::index,
                 routes::crawl,
                 routes::websocket,
-                routes::get_scraped_items
+                routes::get_scraping_result
             ],
         )
         .mount("/", FileServer::from(static_dir))
