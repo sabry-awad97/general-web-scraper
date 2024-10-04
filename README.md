@@ -5,12 +5,13 @@ Universal Web Scraper is a powerful and flexible web scraping application built 
 ## Features
 
 - **Flexible Scraping**: Configure custom scraping parameters for any website.
-- **Real-Time Updates**: Get instant updates on scraping results.
+- **Real-Time Updates**: Get instant updates on scraping results via WebSocket.
 - **Data Visualization**: View scraped data in an organized table format.
 - **Pagination Support**: Automatically handle multi-page scraping tasks.
-- **AI-Powered**: Utilizes Google's Gemini AI for advanced data processing.
+- **AI-Powered**: Utilizes Google's Generative AI (Gemini) for advanced data processing.
 - **Cost Estimation**: Provides token usage and cost estimates for AI processing.
 - **Dark Mode**: Sleek dark mode interface for comfortable viewing.
+- **Responsive Design**: Fully responsive UI that works on desktop and mobile devices.
 
 ## Tech Stack
 
@@ -52,12 +53,6 @@ Universal Web Scraper is a powerful and flexible web scraping application built 
    npm install
    ```
 
-4. Create a `.env` file in the `scrapy` directory and add your Gemini API key:
-
-   ```sh
-   GEMINI_API_KEY=your_api_key_here
-   ```
-
 ### Running the Application
 
 1. Start the backend server:
@@ -75,6 +70,25 @@ Universal Web Scraper is a powerful and flexible web scraping application built 
    ```
 
 3. Open your browser and navigate to `http://localhost:5173` to access the application.
+
+## Project Structure
+
+- `scrapy/`: Rust backend
+- `scrapy-client/`: React TypeScript frontend
+- `Makefile`: Contains commands for building and running the project
+
+## Available Scripts
+
+In the project directory, you can run:
+
+- `make build`: Build both backend and frontend
+- `make run`: Run the entire application (backend and frontend)
+- `make clean`: Clean build artifacts
+- `make test`: Run tests for both backend and frontend
+- `make format`: Format code for both backend and frontend
+- `make lint`: Lint code for both backend and frontend
+
+For more available commands, run `make help`.
 
 ## Contributing
 
