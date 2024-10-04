@@ -9,11 +9,18 @@ use google_generative_ai_rs::v1::{
     },
 };
 use log::{debug, error, info};
+use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::error::AppError;
 use crate::models::{ScrapeParams, WebSocketMessage};
 use crate::services::WebSocketService;
+
+pub enum AIResponse {
+    JsonArray(Vec<Value>),
+    JsonObject(Value),
+    Text(String),
+}
 
 pub struct AIService {
     client: Arc<Client>,
@@ -40,10 +47,11 @@ impl AIService {
         &self,
         html: &str,
         params: &ScrapeParams,
-    ) -> Result<Vec<serde_json::Value>, AppError> {
+    ) -> Result<AIResponse, AppError> {
         debug!("Extracting items with params: {:?}", params);
-        let prompt = self.build_prompt(html, params);
-        let request = self.build_request(prompt);
+        let system_prompt = self.build_system_prompt();
+        let user_prompt = self.build_prompt(html, params);
+        let request = self.build_request(system_prompt, user_prompt);
 
         self.websocket_service
             .send_message(WebSocketMessage::progress("Starting AI processing..."))
@@ -169,17 +177,33 @@ impl AIService {
         }
     }
 
-    async fn handle_ai_response(
-        &self,
-        full_response: String,
-    ) -> Result<Vec<serde_json::Value>, AppError> {
+    async fn handle_ai_response(&self, full_response: String) -> Result<AIResponse, AppError> {
         match self.parse_ai_response(&full_response) {
             Ok(parsed_response) => {
-                info!("Successfully extracted {} items", parsed_response.len());
-                self.websocket_service
-                    .send_message(WebSocketMessage::success(&parsed_response))
-                    .await?;
-                Ok(parsed_response)
+                info!("Successfully processed AI response");
+                match parsed_response {
+                    AIResponse::JsonArray(ref json_array) => {
+                        self.websocket_service
+                            .send_message(WebSocketMessage::success(&json_array))
+                            .await?;
+
+                        Ok(parsed_response)
+                    }
+                    AIResponse::JsonObject(ref json_object) => {
+                        self.websocket_service
+                            .send_message(WebSocketMessage::success(&json_object))
+                            .await?;
+
+                        Ok(parsed_response)
+                    }
+                    AIResponse::Text(ref text) => {
+                        self.websocket_service
+                            .send_message(WebSocketMessage::scraping_result(&text))
+                            .await?;
+
+                        Ok(parsed_response)
+                    }
+                }
             }
             Err(e) => {
                 let error_msg = format!("Failed to parse AI response: {}", e);
@@ -215,12 +239,12 @@ impl AIService {
     "#.to_string()
     }
 
-    fn build_request(&self, prompt: String) -> Request {
+    fn build_request(&self, system_prompt: String, user_prompt: String) -> Request {
         Request {
             contents: vec![Content {
                 role: Role::User,
                 parts: vec![Part {
-                    text: Some(prompt),
+                    text: Some(user_prompt),
                     inline_data: None,
                     file_data: None,
                     video_metadata: None,
@@ -239,18 +263,26 @@ impl AIService {
             }),
             system_instruction: Some(SystemInstructionContent {
                 parts: vec![SystemInstructionPart {
-                    text: Some(self.build_system_prompt()),
+                    text: Some(system_prompt),
                 }],
             }),
         }
     }
 
-    fn parse_ai_response(&self, response: &str) -> Result<Vec<serde_json::Value>, AppError> {
+    fn parse_ai_response(&self, response: &str) -> Result<AIResponse, AppError> {
         debug!("Parsing AI response");
-        serde_json::from_str(response).map_err(|e| {
-            let error_msg = format!("Failed to parse AI response: {}", e);
-            error!("{}", error_msg);
-            AppError::AI(e.to_string())
-        })
+
+        // Try parsing as JSON array first
+        if let Ok(json_array) = serde_json::from_str::<Vec<Value>>(response) {
+            return Ok(AIResponse::JsonArray(json_array));
+        }
+
+        // Try parsing as JSON object
+        if let Ok(json_object) = serde_json::from_str::<Value>(response) {
+            return Ok(AIResponse::JsonObject(json_object));
+        }
+
+        // If not JSON, return as plain text
+        Ok(AIResponse::Text(response.to_string()))
     }
 }
