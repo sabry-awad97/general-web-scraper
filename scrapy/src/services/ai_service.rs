@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
 use google_generative_ai_rs::v1::{
-    api::Client,
+    api::{Client, PostResult},
+    errors::GoogleAPIError,
     gemini::{
         request::{GenerationConfig, Request, SystemInstructionContent, SystemInstructionPart},
         Content, Part, Role,
     },
 };
 use log::{debug, error, info};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
 use crate::error::AppError;
 use crate::models::{ScrapeParams, WebSocketMessage};
@@ -44,82 +45,140 @@ impl AIService {
         let prompt = self.build_prompt(html, params);
         let request = self.build_request(prompt);
 
-        let (tx, mut rx) = mpsc::channel(100);
-
         self.websocket_service
             .send_message(WebSocketMessage::progress("Starting AI processing..."))
             .await?;
 
-        let client = self.client.clone();
-        let websocket_service = self.websocket_service.clone();
-        tokio::spawn(async move {
-            match client.post(30, &request).await {
-                Ok(response) => {
-                    info!("AI Response: {:?}", response);
+        let response = self.process_ai_request(request).await?;
+        self.handle_ai_response(response).await
+    }
 
-                    if let Some(stream_response) = response.rest() {
-                        if let Some(candidate) = stream_response.candidates.first() {
-                            let tx = tx.clone();
-                            if let Some(part) = candidate.content.parts.first() {
-                                if let Some(text) = part.text.as_ref() {
-                                    let _ = tx.send(text.to_string()).await;
-                                }
-                            }
+    async fn process_ai_request(&self, request: Request) -> Result<String, AppError> {
+        let (tx, mut rx) = mpsc::channel(100);
+        let (done_tx, done_rx) = oneshot::channel();
 
-                            if let Some(finish_reason) = candidate.finish_reason.as_ref() {
-                                info!("AI processing completed: {:?}", finish_reason);
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    let error_msg = format!("AI processing failed: {}", e);
-                    error!("{}", error_msg);
-                    let _ = websocket_service
-                        .send_message(WebSocketMessage::error(&error_msg))
-                        .await;
-                    let _ = tx.send(format!("ERROR: {}", e)).await;
-                }
-            }
-
-            let _ = tx.send("EOF_MARKER".to_string()).await;
-        });
+        self.spawn_ai_processing_task(request, tx, done_tx);
 
         let mut full_response = String::new();
-        while let Some(chunk) = rx.recv().await {
-            if chunk == "EOF_MARKER" {
-                break;
-            }
-            if chunk.starts_with("ERROR:") {
-                let error_msg = chunk[7..].to_string();
-                self.websocket_service
-                    .send_message(WebSocketMessage::error(&error_msg))
-                    .await?;
-                return Err(AppError::AI(error_msg));
-            }
-            full_response.push_str(&chunk);
-            self.websocket_service
-                .send_message(WebSocketMessage::scraping_result(&chunk))
-                .await?;
-        }
+        self.collect_ai_response(&mut rx, done_rx, &mut full_response)
+            .await?;
 
         debug!(
             "AI response received, length: {} characters",
             full_response.len()
         );
+        Ok(full_response)
+    }
 
-        match self.parse_ai_response(&full_response) {
-            Ok(parsed_response) => {
-                info!("Successfully extracted {} items", parsed_response.len());
+    fn spawn_ai_processing_task(
+        &self,
+        request: Request,
+        tx: mpsc::Sender<String>,
+        done_tx: oneshot::Sender<Result<(), AppError>>,
+    ) {
+        let client = self.client.clone();
+        let websocket_service = self.websocket_service.clone();
+        tokio::spawn(async move {
+            match client.post(30, &request).await {
+                Ok(response) => Self::handle_successful_response(response, tx, done_tx).await,
+                Err(e) => Self::handle_failed_response(e, websocket_service, done_tx).await,
+            }
+        });
+    }
 
+    async fn handle_successful_response(
+        response: PostResult,
+        tx: mpsc::Sender<String>,
+        done_tx: oneshot::Sender<Result<(), AppError>>,
+    ) {
+        info!("AI Response: {:?}", response);
+        if let Some(stream_response) = response.rest() {
+            if let Some(candidate) = stream_response.candidates.first() {
+                if let Some(part) = candidate.content.parts.first() {
+                    if let Some(text) = part.text.as_ref() {
+                        let _ = tx.send(text.to_string()).await;
+                    }
+                }
+                if let Some(finish_reason) = candidate.finish_reason.as_ref() {
+                    info!("AI processing completed: {:?}", finish_reason);
+                }
+            }
+            if let Some(usage_metadata) = stream_response.usage_metadata {
+                info!("Usage metadata: {:?}", usage_metadata);
+            }
+        }
+        let _ = done_tx.send(Ok(()));
+    }
+
+    async fn handle_failed_response(
+        e: GoogleAPIError,
+        websocket_service: Arc<WebSocketService>,
+        done_tx: oneshot::Sender<Result<(), AppError>>,
+    ) {
+        let error_msg = format!("AI processing failed: {}", e);
+        error!("{}", error_msg);
+        let _ = websocket_service
+            .send_message(WebSocketMessage::error(&error_msg))
+            .await;
+        let _ = done_tx.send(Err(AppError::AI(e.to_string())));
+    }
+
+    async fn collect_ai_response(
+        &self,
+        rx: &mut mpsc::Receiver<String>,
+        mut done_rx: oneshot::Receiver<Result<(), AppError>>,
+        full_response: &mut String,
+    ) -> Result<(), AppError> {
+        loop {
+            tokio::select! {
+                Some(chunk) = rx.recv() => {
+                    full_response.push_str(&chunk);
+                    self.websocket_service
+                        .send_message(WebSocketMessage::scraping_result(&chunk))
+                        .await?;
+                }
+                result = &mut done_rx => {
+                    return self.handle_done_signal(result).await;
+                }
+            }
+        }
+    }
+
+    async fn handle_done_signal(
+        &self,
+        result: Result<Result<(), AppError>, oneshot::error::RecvError>,
+    ) -> Result<(), AppError> {
+        match result {
+            Ok(Ok(())) => {
                 self.websocket_service
                     .send_message(WebSocketMessage::progress("AI processing completed"))
                     .await?;
+                Ok(())
+            }
+            Ok(Err(e)) => Err(e),
+            Err(e) => {
+                let error_msg = format!("AI processing task failed unexpectedly: {}", e);
+                error!("{}", error_msg);
+                self.websocket_service
+                    .send_message(WebSocketMessage::error(&error_msg))
+                    .await?;
+                Err(AppError::AI(
+                    "AI processing task failed unexpectedly".to_string(),
+                ))
+            }
+        }
+    }
 
+    async fn handle_ai_response(
+        &self,
+        full_response: String,
+    ) -> Result<Vec<serde_json::Value>, AppError> {
+        match self.parse_ai_response(&full_response) {
+            Ok(parsed_response) => {
+                info!("Successfully extracted {} items", parsed_response.len());
                 self.websocket_service
                     .send_message(WebSocketMessage::success(&parsed_response))
                     .await?;
-
                 Ok(parsed_response)
             }
             Err(e) => {
