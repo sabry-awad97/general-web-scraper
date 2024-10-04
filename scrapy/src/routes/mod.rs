@@ -5,7 +5,7 @@ use std::sync::Arc;
 use ws::Message;
 
 use crate::error::AppError;
-use crate::models::{PaginationInfo, ScrapeParams, ScrapingResult, TokenCounts, WebSocketMessage};
+use crate::models::{ScrapeParams, ScrapingResult, WebSocketMessage};
 use crate::services::{AIService, CrawlerService, WebSocketService};
 
 #[get("/")]
@@ -87,26 +87,23 @@ async fn handle_websocket(
 pub async fn get_scraping_result(
     ai_service: &State<Arc<AIService>>,
 ) -> Result<Json<ScrapingResult>, rocket::http::Status> {
-    match ai_service.get_scraped_items().await {
-        Ok(items) => Ok(Json(ScrapingResult {
-            all_data: items,
-            input_tokens: 0,
-            output_tokens: 0,
+    match ai_service.get_current_scraping_result().await {
+        Some(result) => Ok(Json(ScrapingResult {
+            all_data: result.scraped_items,
+            input_tokens: result.usage_metadata.input_tokens,
+            output_tokens: result.usage_metadata.output_tokens,
             total_cost: 0.0,
-            pagination_info: Some(PaginationInfo {
-                page_urls: vec![],
-                token_counts: TokenCounts {
-                    input_tokens: 0,
-                    output_tokens: 0,
-                },
-                price: 0.0,
-            }),
+            pagination_info: None,
         })),
-        Err(e) => {
-            log::error!("Failed to get scraped items: {}", e);
-            Err(rocket::http::Status::InternalServerError)
-        }
+        None => Err(rocket::http::Status::NotFound),
     }
+}
+
+#[post("/clear-scraped-items")]
+pub async fn clear_scraped_items(
+    _ai_service: &State<Arc<AIService>>,
+) -> Result<(), rocket::http::Status> {
+    Ok(())
 }
 
 #[post("/crawl", data = "<params>")]

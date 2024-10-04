@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use google_generative_ai_rs::v1::{
     api::{Client, PostResult},
     errors::GoogleAPIError,
@@ -12,9 +13,9 @@ use log::{debug, error, info};
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-use crate::error::AppError;
-use crate::models::{ScrapeParams, WebSocketMessage};
+use crate::models::{ScrapeParams, TokenCounts, WebSocketMessage};
 use crate::services::WebSocketService;
+use crate::{error::AppError, models::AiScrapingResult};
 
 pub enum AIResponse {
     JsonArray(Vec<Value>),
@@ -25,7 +26,7 @@ pub enum AIResponse {
 pub struct AIService {
     client: Arc<Mutex<Option<Client>>>,
     websocket_service: Arc<WebSocketService>,
-    scraped_items: Arc<Mutex<Vec<serde_json::Value>>>,
+    current_scraping_result: Arc<Mutex<Option<AiScrapingResult>>>,
 }
 
 impl AIService {
@@ -35,7 +36,7 @@ impl AIService {
         Self {
             client: Arc::new(Mutex::new(None)),
             websocket_service,
-            scraped_items: Arc::new(Mutex::new(vec![])),
+            current_scraping_result: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -52,6 +53,9 @@ impl AIService {
         html: &str,
         params: &ScrapeParams,
     ) -> Result<AIResponse, AppError> {
+        let start_time = Utc::now();
+        self.initialize_scraping_result(start_time).await;
+
         debug!("Extracting items with params: {:?}", params);
         self.set_api_key(&params.api_key).await;
         let system_prompt = self.build_system_prompt();
@@ -63,7 +67,10 @@ impl AIService {
             .await?;
 
         let response = self.process_ai_request(request).await?;
-        self.handle_ai_response(response).await
+        let result = self.handle_ai_response(response).await?;
+
+        self.finalize_scraping_result(true, None).await;
+        Ok(result)
     }
 
     async fn process_ai_request(&self, request: Request) -> Result<String, AppError> {
@@ -91,10 +98,19 @@ impl AIService {
     ) {
         let client = self.client.clone();
         let websocket_service = self.websocket_service.clone();
+        let current_scraping_result = self.current_scraping_result.clone();
         tokio::spawn(async move {
             if let Some(client) = client.lock().await.as_ref() {
                 match client.post(30, &request).await {
-                    Ok(response) => Self::handle_successful_response(response, tx, done_tx).await,
+                    Ok(response) => {
+                        Self::handle_successful_response(
+                            response,
+                            tx,
+                            done_tx,
+                            current_scraping_result,
+                        )
+                        .await
+                    }
                     Err(e) => Self::handle_failed_response(e, websocket_service, done_tx).await,
                 }
             }
@@ -105,6 +121,7 @@ impl AIService {
         response: PostResult,
         tx: mpsc::Sender<String>,
         done_tx: oneshot::Sender<Result<(), AppError>>,
+        current_scraping_result: Arc<Mutex<Option<AiScrapingResult>>>,
     ) {
         info!("AI Response: {:?}", response);
         if let Some(stream_response) = response.rest() {
@@ -120,6 +137,13 @@ impl AIService {
             }
             if let Some(usage_metadata) = stream_response.usage_metadata {
                 info!("Usage metadata: {:?}", usage_metadata);
+                let mut result = current_scraping_result.lock().await;
+                if let Some(ref mut r) = *result {
+                    r.usage_metadata = TokenCounts {
+                        input_tokens: usage_metadata.prompt_token_count,
+                        output_tokens: usage_metadata.candidates_token_count,
+                    };
+                }
             }
         }
         let _ = done_tx.send(Ok(()));
@@ -219,6 +243,8 @@ impl AIService {
             Err(e) => {
                 let error_msg = format!("Failed to parse AI response: {}", e);
                 error!("{}", error_msg);
+                self.finalize_scraping_result(false, Some(error_msg.clone()))
+                    .await;
                 self.websocket_service
                     .send_message(WebSocketMessage::error(&error_msg))
                     .await?;
@@ -298,12 +324,40 @@ impl AIService {
     }
 
     pub async fn store_scraped_item(&self, item: serde_json::Value) {
-        let mut items = self.scraped_items.lock().await;
-        items.push(item);
+        let mut result = self.current_scraping_result.lock().await;
+        if let Some(ref mut r) = *result {
+            r.scraped_items.push(item);
+        }
     }
 
-    pub async fn get_scraped_items(&self) -> Result<Vec<serde_json::Value>, AppError> {
-        let items = self.scraped_items.lock().await;
-        Ok(items.clone())
+    async fn initialize_scraping_result(&self, start_time: DateTime<Utc>) {
+        let mut result = self.current_scraping_result.lock().await;
+        *result = Some(AiScrapingResult {
+            start_time,
+            end_time: start_time,
+            duration_ms: 0,
+            success: false,
+            error_message: None,
+            scraped_items: Vec::new(),
+            usage_metadata: TokenCounts {
+                input_tokens: 0,
+                output_tokens: 0,
+            },
+        });
+    }
+
+    async fn finalize_scraping_result(&self, success: bool, error_message: Option<String>) {
+        let mut result = self.current_scraping_result.lock().await;
+        if let Some(ref mut r) = *result {
+            r.end_time = Utc::now();
+            r.duration_ms = (r.end_time - r.start_time).num_milliseconds();
+            r.success = success;
+            r.error_message = error_message;
+        }
+    }
+
+    pub async fn get_current_scraping_result(&self) -> Option<AiScrapingResult> {
+        let result = self.current_scraping_result.lock().await;
+        result.clone()
     }
 }

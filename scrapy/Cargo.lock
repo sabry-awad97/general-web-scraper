@@ -2076,6 +2076,7 @@ name = "scrapy"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "dotenvy",
  "env_logger",
  "futures-util",

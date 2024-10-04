@@ -7,6 +7,7 @@ import ResultsDisplay from "./components/results-display";
 import Sidebar from "./components/sidebar";
 import { ThemeToggle } from "./components/theme-toggle";
 import WelcomeCard from "./components/welcome-card";
+import { useClearScrapedItems } from "./hooks/useClearScrapedItems";
 import { useCrawl } from "./hooks/useCrawl";
 import { useScrapingResult } from "./hooks/useScrapingResult";
 import { useWebSocketContext } from "./hooks/useWebSocketContext";
@@ -23,11 +24,14 @@ function App() {
     error: crawlError,
   } = useCrawl();
 
+  const { mutateAsync: clearScrapedItems } = useClearScrapedItems();
+
   const { data: scrapingResult = null, refetch: refetchScrapingResult } =
     useScrapingResult();
 
   const onSubmit = async (values: ScrapeSchema) => {
     try {
+      await clearScrapedItems();
       await crawl(values);
       refetchScrapingResult();
       celebrateSuccess();

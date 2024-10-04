@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 mod message;
@@ -20,8 +21,8 @@ pub struct ScrapeParams {
 #[serde(rename_all = "camelCase")]
 pub struct ScrapingResult {
     pub all_data: Vec<serde_json::Value>,
-    pub input_tokens: u32,
-    pub output_tokens: u32,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
     pub total_cost: f64,
     pub pagination_info: Option<PaginationInfo>,
 }
@@ -34,9 +35,20 @@ pub struct PaginationInfo {
     pub price: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenCounts {
-    pub input_tokens: u32,
-    pub output_tokens: u32,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AiScrapingResult {
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
+    pub duration_ms: i64,
+    pub success: bool,
+    pub error_message: Option<String>,
+    pub scraped_items: Vec<serde_json::Value>,
+    pub usage_metadata: TokenCounts,
 }
