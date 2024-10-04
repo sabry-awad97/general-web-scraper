@@ -13,9 +13,9 @@ use log::{debug, error, info};
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-use crate::models::{ScrapeParams, TokenCounts, WebSocketMessage};
-use crate::services::WebSocketService;
+use crate::models::{ScrapeParams, UsageMetadata, WebSocketMessage};
 use crate::{error::AppError, models::AiScrapingResult};
+use crate::{services::WebSocketService, utils::calculate_price};
 
 pub enum AIResponse {
     JsonArray(Vec<Value>),
@@ -54,7 +54,8 @@ impl AIService {
         params: &ScrapeParams,
     ) -> Result<AIResponse, AppError> {
         let start_time = Utc::now();
-        self.initialize_scraping_result(start_time).await;
+        self.initialize_scraping_result(start_time, params.model.clone())
+            .await;
 
         debug!("Extracting items with params: {:?}", params);
         self.set_api_key(&params.api_key).await;
@@ -139,10 +140,13 @@ impl AIService {
                 info!("Usage metadata: {:?}", usage_metadata);
                 let mut result = current_scraping_result.lock().await;
                 if let Some(ref mut r) = *result {
-                    r.usage_metadata = TokenCounts {
-                        input_tokens: usage_metadata.prompt_token_count,
-                        output_tokens: usage_metadata.candidates_token_count,
-                    };
+                    r.usage_metadata.input_tokens = usage_metadata.prompt_token_count;
+                    r.usage_metadata.output_tokens = usage_metadata.candidates_token_count;
+                    r.usage_metadata.total_cost = calculate_price(
+                        &r.model,
+                        r.usage_metadata.input_tokens,
+                        r.usage_metadata.output_tokens,
+                    );
                 }
             }
         }
@@ -330,19 +334,21 @@ impl AIService {
         }
     }
 
-    async fn initialize_scraping_result(&self, start_time: DateTime<Utc>) {
+    async fn initialize_scraping_result(&self, start_time: DateTime<Utc>, model: String) {
         let mut result = self.current_scraping_result.lock().await;
         *result = Some(AiScrapingResult {
+            model,
             start_time,
             end_time: start_time,
-            duration_ms: 0,
             success: false,
             error_message: None,
             scraped_items: Vec::new(),
-            usage_metadata: TokenCounts {
+            usage_metadata: UsageMetadata {
                 input_tokens: 0,
                 output_tokens: 0,
+                total_cost: 0.0,
             },
+            duration_ms: 0,
         });
     }
 

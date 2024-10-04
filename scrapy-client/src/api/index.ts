@@ -47,6 +47,20 @@ apiClient.interceptors.response.use(
 );
 
 const api = {
+  getModels: async () => {
+    try {
+      const response = await apiClient.get<string[]>("/models");
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new Error(
+          error.response?.data?.message ||
+            "An error occurred while fetching models",
+        );
+      }
+      throw error;
+    }
+  },
   crawl: async (params: ScrapeSchema) => {
     try {
       const response = await apiClient.post("/crawl", params);

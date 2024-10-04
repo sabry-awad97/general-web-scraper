@@ -31,24 +31,31 @@ pub struct ScrapingResult {
 #[serde(rename_all = "camelCase")]
 pub struct PaginationInfo {
     pub page_urls: Vec<String>,
-    pub token_counts: TokenCounts,
-    pub price: f64,
+    pub token_counts: UsageMetadata,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TokenCounts {
+pub struct UsageMetadata {
     pub input_tokens: u64,
     pub output_tokens: u64,
+    pub total_cost: f64,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct AiScrapingResult {
+    pub model: String,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub duration_ms: i64,
     pub success: bool,
     pub error_message: Option<String>,
     pub scraped_items: Vec<serde_json::Value>,
-    pub usage_metadata: TokenCounts,
+    pub usage_metadata: UsageMetadata,
+}
+
+#[derive(Clone, Copy)]
+pub struct PricingInfo {
+    pub input: f64,
+    pub output: f64,
 }

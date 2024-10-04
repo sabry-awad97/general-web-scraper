@@ -2082,6 +2082,7 @@ dependencies = [
  "futures-util",
  "google-generative-ai-rs",
  "log",
+ "phf 0.11.2",
  "reqwest 0.12.8",
  "rocket",
  "rocket_cors",

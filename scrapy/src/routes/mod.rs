@@ -7,11 +7,17 @@ use ws::Message;
 use crate::error::AppError;
 use crate::models::{ScrapeParams, ScrapingResult, WebSocketMessage};
 use crate::services::{AIService, CrawlerService, WebSocketService};
+use crate::utils::get_all_models;
 
 #[get("/")]
 pub fn index() -> &'static str {
     log::info!("Received request for index route");
     "Welcome to the web scraping API!"
+}
+
+#[get("/models")]
+pub fn get_models() -> Json<Vec<String>> {
+    Json(get_all_models())
 }
 
 #[get("/ws")]
@@ -86,16 +92,16 @@ async fn handle_websocket(
 #[get("/scraping-result")]
 pub async fn get_scraping_result(
     ai_service: &State<Arc<AIService>>,
-) -> Result<Json<ScrapingResult>, rocket::http::Status> {
+) -> Result<Json<Option<ScrapingResult>>, rocket::http::Status> {
     match ai_service.get_current_scraping_result().await {
-        Some(result) => Ok(Json(ScrapingResult {
+        Some(result) => Ok(Json(Some(ScrapingResult {
             all_data: result.scraped_items,
             input_tokens: result.usage_metadata.input_tokens,
             output_tokens: result.usage_metadata.output_tokens,
-            total_cost: 0.0,
+            total_cost: result.usage_metadata.total_cost,
             pagination_info: None,
-        })),
-        None => Err(rocket::http::Status::NotFound),
+        }))),
+        None => Ok(Json(None)),
     }
 }
 

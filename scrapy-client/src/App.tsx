@@ -9,12 +9,14 @@ import { ThemeToggle } from "./components/theme-toggle";
 import WelcomeCard from "./components/welcome-card";
 import { useClearScrapedItems } from "./hooks/useClearScrapedItems";
 import { useCrawl } from "./hooks/useCrawl";
+import { useModels } from "./hooks/useModels";
 import { useScrapingResult } from "./hooks/useScrapingResult";
 import { useWebSocketContext } from "./hooks/useWebSocketContext";
 import { ScrapeSchema } from "./types";
 
 function App() {
   const { isConnected, connectionError } = useWebSocketContext();
+  const { data: models = [] } = useModels();
 
   const {
     mutateAsync: crawl,
@@ -43,6 +45,7 @@ function App() {
   return (
     <div className="flex h-screen">
       <Sidebar
+        models={models}
         results={scrapingResult}
         onSubmit={onSubmit}
         isPending={isPending}

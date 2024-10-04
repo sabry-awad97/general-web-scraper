@@ -34,7 +34,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useClipboard } from "@/hooks/useClipboard";
-import { PRICING } from "@/lib/constants";
 import { secureStorage } from "@/lib/secure-storage";
 import { cn } from "@/lib/utils";
 import { scrapeSchema } from "@/schemas";
@@ -57,6 +56,7 @@ import { useForm } from "react-hook-form";
 
 interface Props {
   results: ScrapingResult | null;
+  models: string[];
   onSubmit: (data: ScrapeSchema) => void;
   isPending: boolean;
 }
@@ -65,7 +65,7 @@ const API_KEY_STORAGE_KEY = "gemini_api_key";
 const API_KEY_LOCK_PASSWORD_STORAGE_KEY = "gemini_api_key_lock_password";
 const API_KEY_LOCKED_STATE_KEY = "gemini_api_key_locked_state";
 
-const Sidebar = ({ results, onSubmit, isPending }: Props) => {
+const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isApiKeyLocked, setIsApiKeyLocked] = useState(false);
   const [showLockDialog, setShowLockDialog] = useState(false);
@@ -75,7 +75,7 @@ const Sidebar = ({ results, onSubmit, isPending }: Props) => {
   const form = useForm<ScrapeSchema>({
     resolver: zodResolver(scrapeSchema),
     defaultValues: {
-      model: Object.keys(PRICING)[0],
+      model: models[0],
       apiKey: "",
       url: "",
       enableScraping: false,
@@ -188,7 +188,7 @@ const Sidebar = ({ results, onSubmit, isPending }: Props) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {Object.keys(PRICING).map((model) => (
+                      {models.map((model) => (
                         <SelectItem key={model} value={model}>
                           {model}
                         </SelectItem>

@@ -7,12 +7,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 mod ai;
+mod constants;
 mod crawler;
 mod error;
 mod models;
 mod routes;
 mod services;
 mod spider;
+mod utils;
 
 #[rocket::launch]
 fn rocket() -> _ {
@@ -51,7 +53,8 @@ fn rocket() -> _ {
                 routes::crawl,
                 routes::websocket,
                 routes::get_scraping_result,
-                routes::clear_scraped_items
+                routes::clear_scraped_items,
+                routes::get_models
             ],
         )
         .mount("/", FileServer::from(static_dir))
