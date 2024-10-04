@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FileJson, FileSpreadsheet } from "lucide-react";
 import { ScrapingResult } from "../types";
 
 interface ResultsDisplayProps {
@@ -56,12 +57,59 @@ export default function ResultsDisplay({ results }: ResultsDisplayProps) {
     }
   };
 
+  const handleDownloadPaginationJSON = () => {
+    const jsonString = JSON.stringify(results.paginationInfo, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "pagination_data.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPaginationCSV = () => {
+    if (results.paginationInfo && results.paginationInfo.pageUrls.length > 0) {
+      const csvData = results.paginationInfo.pageUrls.join("\n");
+      const csvString = `Page URLs\n${csvData}`;
+      const blob = new Blob([csvString], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "pagination_data.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      console.log("No pagination data available");
+    }
+  };
+
   return (
     <div className="space-y-8">
-      <section>
+      <section className="relative">
         <h2 className="mb-3 text-2xl font-semibold text-white">
           Harvested Insights
         </h2>
+        <div className="absolute top-0 right-0 flex gap-2">
+          <Button
+            onClick={handleDownloadJSON}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <FileJson className="w-4 h-4" />
+            JSON
+          </Button>
+          <Button
+            onClick={handleDownloadCSV}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            CSV
+          </Button>
+        </div>
         <ScrollArea className="h-[300px] rounded-md border">
           <Table className="w-full whitespace-nowrap">
             <TableCaption>
@@ -95,25 +143,31 @@ export default function ResultsDisplay({ results }: ResultsDisplayProps) {
         </ScrollArea>
       </section>
 
-      <section>
-        <h2 className="mb-3 text-2xl font-semibold text-white">
-          Data Export Hub
-        </h2>
-        <div className="flex gap-3">
-          <Button onClick={handleDownloadJSON} className="px-6">
-            Export as JSON
-          </Button>
-          <Button onClick={handleDownloadCSV} className="px-6">
-            Export as CSV
-          </Button>
-        </div>
-      </section>
-
       {results.paginationInfo && (
-        <section>
+        <section className="relative">
           <h2 className="mb-3 text-2xl font-semibold text-white">
             Navigation Landscape
           </h2>
+          <div className="absolute top-0 right-0 flex gap-2">
+            <Button
+              onClick={handleDownloadPaginationJSON}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <FileJson className="w-4 h-4" />
+              JSON
+            </Button>
+            <Button
+              onClick={handleDownloadPaginationCSV}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              CSV
+            </Button>
+          </div>
           <ScrollArea className="h-[200px] rounded-md border">
             <Table className="w-full whitespace-nowrap">
               <TableCaption>
@@ -134,20 +188,6 @@ export default function ResultsDisplay({ results }: ResultsDisplayProps) {
             </Table>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
-          <div className="flex gap-3 mt-3">
-            <Button
-              onClick={() => alert("Downloading Pagination JSON...")}
-              className="px-6"
-            >
-              Export Pagination JSON
-            </Button>
-            <Button
-              onClick={() => alert("Downloading Pagination CSV...")}
-              className="px-6"
-            >
-              Export Pagination CSV
-            </Button>
-          </div>
         </section>
       )}
     </div>

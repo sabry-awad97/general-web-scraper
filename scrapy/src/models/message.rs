@@ -54,8 +54,4 @@ impl WebSocketMessage {
     pub fn error(message: impl Into<String>) -> Self {
         Self::new(MessageType::Error, message.into(), None)
     }
-
-    pub fn warning(message: impl Into<String>) -> Self {
-        Self::new(MessageType::Warning, message.into(), None)
-    }
 }
