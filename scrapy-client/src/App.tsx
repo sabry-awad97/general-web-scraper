@@ -1,7 +1,11 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import confetti from "canvas-confetti";
+import { Menu, User } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import AlertManager from "./components/alert-manager";
-import ConnectionStatus from "./components/connection-status";
 import MessagePreview from "./components/message-preview";
 import ResultsDisplay from "./components/results-display";
 import Sidebar from "./components/sidebar";
@@ -11,13 +15,11 @@ import { useClearScrapingResult } from "./hooks/useClearScrapingResult";
 import { useCrawl } from "./hooks/useCrawl";
 import { useModels } from "./hooks/useModels";
 import { useScrapingResult } from "./hooks/useScrapingResult";
-import { useWebSocketContext } from "./hooks/useWebSocketContext";
 import { ScrapeSchema } from "./types";
 
 function App() {
-  const { isConnected, connectionError } = useWebSocketContext();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const { data: models = [] } = useModels();
-
   const {
     mutateAsync: crawl,
     isPending,
@@ -25,11 +27,9 @@ function App() {
     isError,
     error: crawlError,
   } = useCrawl();
-
-  const { mutateAsync: clearScrapingResult } = useClearScrapingResult();
-
   const { data: scrapingResult = null, refetch: refetchScrapingResult } =
     useScrapingResult();
+  const { mutateAsync: clearScrapingResult } = useClearScrapingResult();
 
   const onSubmit = async (values: ScrapeSchema) => {
     try {
@@ -43,41 +43,61 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen">
-      <Sidebar
-        models={models}
-        results={scrapingResult}
-        onSubmit={onSubmit}
-        isPending={isPending}
-      />
-
-      <main className="flex-1 overflow-auto p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-4xl font-bold">Universal Web Scraper 🦑</h1>
-          <ThemeToggle />
-        </div>
-
-        <ConnectionStatus
-          isConnected={isConnected}
-          connectionError={connectionError}
-        />
-
-        <AlertManager
+    <div className="flex h-screen bg-gradient-to-br from-background to-secondary/30">
+      {sidebarOpen && (
+        <Sidebar
+          models={models}
+          results={scrapingResult}
+          onSubmit={onSubmit}
           isPending={isPending}
-          isError={isError}
-          crawlError={crawlError}
         />
+      )}
 
-        {isSuccess && scrapingResult ? (
-          <ResultsDisplay results={scrapingResult} />
-        ) : (
-          <WelcomeCard />
-        )}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <header className="flex items-center justify-between bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <Button variant="ghost" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <Menu className="w-6 h-6" />
+          </Button>
+          <div className="flex items-center space-x-4">
+            <Input className="w-64" placeholder="Search results..." />
+            <ThemeToggle />
+            <Button variant="ghost" className="rounded-full">
+              <User className="w-6 h-6" />
+            </Button>
+          </div>
+        </header>
 
-        <div className="mt-6">
-          <MessagePreview />
-        </div>
-      </main>
+        <main className="flex-1 p-6 overflow-auto">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-4xl font-bold text-transparent bg-gradient-to-r from-primary to-primary-foreground bg-clip-text">
+              Universal Web Scraper 🦑
+            </h1>
+          </div>
+
+          <AlertManager
+            isPending={isPending}
+            isError={isError}
+            crawlError={crawlError}
+          />
+
+          <Tabs defaultValue="results" className="w-full">
+            <TabsList>
+              <TabsTrigger value="results">Results</TabsTrigger>
+              <TabsTrigger value="messages">Messages</TabsTrigger>
+            </TabsList>
+            <TabsContent value="results">
+              {isSuccess && scrapingResult ? (
+                <ResultsDisplay results={scrapingResult} />
+              ) : (
+                <WelcomeCard />
+              )}
+            </TabsContent>
+            <TabsContent value="messages">
+              <MessagePreview />
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
     </div>
   );
 }

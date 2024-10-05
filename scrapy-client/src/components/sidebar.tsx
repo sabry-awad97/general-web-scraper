@@ -27,20 +27,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useClearScrapingResult } from "@/hooks/useClearScrapingResult";
 import { useClipboard } from "@/hooks/useClipboard";
+import { useScrapingResult } from "@/hooks/useScrapingResult";
+import { useWebSocketContext } from "@/hooks/useWebSocketContext";
 import { secureStorage } from "@/lib/secure-storage";
-import { cn } from "@/lib/utils";
 import { scrapeSchema } from "@/schemas";
 import { ScrapeSchema, ScrapingResult } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   Check,
   Copy,
@@ -52,22 +46,29 @@ import {
   Unlock,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
-interface Props {
-  results: ScrapingResult | null;
+interface SidebarProps {
   models: string[];
+  results: ScrapingResult | null;
   onSubmit: (data: ScrapeSchema) => void;
   isPending: boolean;
 }
 
-const API_KEY_STORAGE_KEY = "gemini_api_key";
-const API_KEY_LOCK_PASSWORD_STORAGE_KEY = "gemini_api_key_lock_password";
-const API_KEY_LOCKED_STATE_KEY = "gemini_api_key_locked_state";
-
-const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  models,
+  results,
+  onSubmit,
+  isPending,
+}) => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isApiKeyLocked, setIsApiKeyLocked] = useState(false);
   const [showLockDialog, setShowLockDialog] = useState(false);
@@ -75,7 +76,8 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
   const { copyToClipboard, isCopied } = useClipboard();
   const { mutateAsync: clearScrapingResult, isPending: isClearing } =
     useClearScrapingResult();
-
+  const { refetch: refetchScrapingResult } = useScrapingResult();
+  const { clearHistory } = useWebSocketContext();
   const form = useForm<ScrapeSchema>({
     resolver: zodResolver(scrapeSchema),
     defaultValues: {
@@ -90,30 +92,27 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
   });
 
   useEffect(() => {
-    const savedApiKey = secureStorage.getItem(API_KEY_STORAGE_KEY);
+    const savedApiKey = secureStorage.getItem("gemini_api_key");
     if (savedApiKey) {
       form.setValue("apiKey", savedApiKey);
     }
-
-    // Initialize the locked state from storage
-    const lockedState = secureStorage.getItem(API_KEY_LOCKED_STATE_KEY);
+    const lockedState = secureStorage.getItem("gemini_api_key_locked_state");
     setIsApiKeyLocked(lockedState === "true");
   }, [form]);
 
   const handleApiKeyChange = (value: string) => {
     form.setValue("apiKey", value);
     if (value) {
-      secureStorage.setItem(API_KEY_STORAGE_KEY, value);
+      secureStorage.setItem("gemini_api_key", value);
     } else {
-      secureStorage.removeItem(API_KEY_STORAGE_KEY);
+      secureStorage.removeItem("gemini_api_key");
     }
   };
 
   const handleLockApiKey = () => {
     if (lockPassword) {
-      // In a real implementation, you'd want to hash the password and store it securely
-      secureStorage.setItem(API_KEY_LOCK_PASSWORD_STORAGE_KEY, lockPassword);
-      secureStorage.setItem(API_KEY_LOCKED_STATE_KEY, "true");
+      secureStorage.setItem("gemini_api_key_lock_password", lockPassword);
+      secureStorage.setItem("gemini_api_key_locked_state", "true");
       setIsApiKeyLocked(true);
       setShowLockDialog(false);
       setLockPassword("");
@@ -122,19 +121,19 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
 
   const handleUnlockApiKey = () => {
     if (
-      lockPassword === secureStorage.getItem(API_KEY_LOCK_PASSWORD_STORAGE_KEY)
+      lockPassword === secureStorage.getItem("gemini_api_key_lock_password")
     ) {
-      secureStorage.setItem(API_KEY_LOCKED_STATE_KEY, "false");
+      secureStorage.setItem("gemini_api_key_locked_state", "false");
       setIsApiKeyLocked(false);
       setShowLockDialog(false);
       setLockPassword("");
     } else {
-      // Show an error message (you might want to add a state for this)
+      // Show an error message
       console.error("Incorrect password");
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     form.reset({
       ...form.getValues(),
       url: "",
@@ -148,62 +147,85 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
       success: "Reset successful",
       error: "Failed to reset",
     });
+
+    await promise;
+
+    clearHistory();
+
+    refetchScrapingResult();
   };
 
   return (
-    <ScrollArea className="h-screen w-[24rem]">
-      <div className="bg-gradient-to-b from-secondary to-background p-4">
-        <div className="mb-4 flex items-center space-x-3">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="text-primary"
-          >
-            <path
-              d="M12 2L2 7L12 12L22 7L12 2Z"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M2 17L12 22L22 17"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M2 12L12 17L22 12"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <h1 className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-xl font-bold text-transparent">
-            Scraper Settings
-          </h1>
-        </div>
+    <ScrollArea className="h-screen w-80">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 space-y-6">
+          <h2 className="mb-6 text-2xl font-bold">Scraper Settings</h2>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Model Selection */}
+          <FormField
+            control={form.control}
+            name="apiKey"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <span>API Key</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-3 h-3 ml-1 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            Your API key is securely encrypted and stored
+                            locally.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      type={showApiKey ? "text" : "password"}
+                      placeholder="Enter your API key"
+                      {...field}
+                      onChange={(e) => handleApiKeyChange(e.target.value)}
+                      className="pr-24 transition-all duration-300"
+                      disabled={isApiKeyLocked}
+                    />
+                    <div className="absolute top-0 right-0 flex h-full">
+                      <ApiKeyActions
+                        showApiKey={showApiKey}
+                        setShowApiKey={setShowApiKey}
+                        isApiKeyLocked={isApiKeyLocked}
+                        copyToClipboard={() => copyToClipboard(field.value)}
+                        isCopied={isCopied}
+                        setShowLockDialog={setShowLockDialog}
+                      />
+                    </div>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="space-y-4">
             <FormField
               control={form.control}
               name="model"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-sm font-medium">Model</FormLabel>
+                  <FormLabel className="flex items-center justify-between">
+                    <span>Model</span>
+                  </FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select Model" />
                       </SelectTrigger>
                     </FormControl>
@@ -220,105 +242,29 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
               )}
             />
 
-            {/* API Key Input */}
-            <FormField
-              control={form.control}
-              name="apiKey"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center text-sm font-medium">
-                    API Key
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="ml-1 h-3 w-3 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            Your API key is securely encrypted and stored
-                            locally.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showApiKey ? "text" : "password"}
-                        placeholder="Enter your API key"
-                        {...field}
-                        onChange={(e) => handleApiKeyChange(e.target.value)}
-                        className={cn(
-                          "pr-24 transition-all duration-300",
-                          isApiKeyLocked && "bg-muted",
-                        )}
-                        disabled={isApiKeyLocked}
-                      />
-                      <div className="absolute right-0 top-0 flex h-full">
-                        <ApiKeyActions
-                          showApiKey={showApiKey}
-                          setShowApiKey={setShowApiKey}
-                          isApiKeyLocked={isApiKeyLocked}
-                          copyToClipboard={() => copyToClipboard(field.value)}
-                          isCopied={isCopied}
-                          setShowLockDialog={setShowLockDialog}
-                        />
-                      </div>
-                    </div>
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                    {field.value && !isApiKeyLocked && (
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        className="h-auto p-0 text-xs text-muted-foreground"
-                        onClick={() => handleApiKeyChange("")}
-                      >
-                        Clear API Key
-                      </Button>
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* URL Input */}
             <FormField
               control={form.control}
               name="url"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-sm font-medium">URL</FormLabel>
+                  <FormLabel>URL to Scrape</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="https://example.com"
-                      {...field}
-                      className="transition-all duration-300"
-                    />
+                    <Input placeholder="https://example.com" {...field} />
                   </FormControl>
-                  <FormDescription className="text-xs">
-                    Enter the URL to scrape
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Enable Scraping Switch */}
             <FormField
               control={form.control}
               name="enableScraping"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-md border p-3 shadow-sm transition-all duration-300 hover:shadow-md">
-                  <div>
-                    <FormLabel className="text-sm font-medium">
-                      Enable Scraping
-                    </FormLabel>
-                    <FormDescription className="text-xs">
-                      Specify fields to extract
+                <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Enable Scraping</FormLabel>
+                    <FormDescription>
+                      Extract specific fields from the webpage
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -331,78 +277,67 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
               )}
             />
 
-            {/* Fields to Extract */}
-            <AnimatePresence>
-              {form.watch("enableScraping") && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <FormField
-                    control={form.control}
-                    name="tags"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">
-                          Fields to Extract
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Add field and press Enter"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && e.currentTarget.value) {
-                                e.preventDefault();
-                                field.onChange([
-                                  ...field.value,
-                                  e.currentTarget.value,
-                                ]);
-                                e.currentTarget.value = "";
-                              }
-                            }}
-                            className="transition-all duration-300"
-                          />
-                        </FormControl>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {field.value?.map((tag, index) => (
-                            <Badge
-                              key={index}
-                              variant="secondary"
-                              className="flex cursor-pointer items-center text-xs transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
-                            >
+            {form.watch("enableScraping") && (
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fields to Extract</FormLabel>
+                    <FormControl>
+                      <div>
+                        <Input
+                          placeholder="Add field and press Enter"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && e.currentTarget.value) {
+                              e.preventDefault();
+                              field.onChange([
+                                ...field.value,
+                                e.currentTarget.value,
+                              ]);
+                              e.currentTarget.value = "";
+                            }
+                          }}
+                        />
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {field.value.map((tag, index) => (
+                            <Badge key={index} variant="secondary">
                               {tag}
-                              <X
-                                className="ml-1 h-3 w-3"
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-0 ml-1"
                                 onClick={() => {
-                                  field.onChange(
-                                    field.value?.filter((t) => t !== tag),
-                                  );
+                                  const newTags = [...field.value];
+                                  newTags.splice(index, 1);
+                                  field.onChange(newTags);
                                 }}
-                              />
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
                             </Badge>
                           ))}
                         </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
-            {/* Enable Pagination Switch */}
             <FormField
               control={form.control}
               name="enablePagination"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-md border p-3 shadow-sm transition-all duration-300 hover:shadow-md">
-                  <div>
-                    <FormLabel className="text-sm font-medium">
+                <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
                       Enable Pagination
                     </FormLabel>
-                    <FormDescription className="text-xs">
-                      Specify pagination details
+                    <FormDescription>
+                      Scrape multiple pages automatically
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -415,111 +350,110 @@ const Sidebar = ({ models, results, onSubmit, isPending }: Props) => {
               )}
             />
 
-            {/* Pagination Details */}
-            <AnimatePresence>
-              {form.watch("enablePagination") && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <FormField
-                    control={form.control}
-                    name="paginationDetails"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">
-                          Pagination Details
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="E.g., Next button selector"
-                            {...field}
-                            className="transition-all duration-300"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Submit and Reset Buttons */}
-            <div className="flex space-x-2">
-              <Button
-                type="submit"
-                className="flex-1 transition-all duration-300"
-                disabled={isPending}
-              >
-                {isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Scraping...
-                  </>
-                ) : (
-                  "Start Scraping"
+            {form.watch("enablePagination") && (
+              <FormField
+                control={form.control}
+                name="paginationDetails"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pagination Details</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter pagination details"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Specify how to navigate through pages (e.g., "Next" button
+                      selector)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1 transition-all duration-300"
-                onClick={handleReset}
-              >
-                {isClearing ? "Resetting..." : "Reset Results"}
-              </Button>
-            </div>
-          </form>
-        </Form>
+              />
+            )}
+          </div>
 
-        {/* Scraping Summary */}
-        <AnimatePresence>
-          {results && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.3 }}
+          <div className="flex space-x-2">
+            <Button
+              type="submit"
+              className="flex-1 transition-all duration-300"
+              disabled={isPending}
             >
-              <Card className="mt-4 overflow-hidden">
-                <CardHeader className="bg-primary py-2 text-primary-foreground">
-                  <CardTitle className="text-sm font-medium">
-                    Scraping Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1 p-3 text-sm">
-                  <SummaryItem
-                    label="Input Tokens"
-                    value={results.inputTokens.toString()}
-                  />
-                  <SummaryItem
-                    label="Output Tokens"
-                    value={results.outputTokens.toString()}
-                  />
-                  <SummaryItem
-                    label="Total Cost"
-                    value={`$${results.totalCost.toFixed(4)}`}
-                  />
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+              {isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Scraping...
+                </>
+              ) : (
+                "Start Scraping"
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 transition-all duration-300"
+              onClick={handleReset}
+            >
+              {isClearing ? "Resetting..." : "Reset Results"}
+            </Button>
+          </div>
 
-      {/* Lock/Unlock Dialog */}
-      <LockUnlockDialog
-        isOpen={showLockDialog}
-        onClose={() => setShowLockDialog(false)}
-        isLocked={isApiKeyLocked}
-        password={lockPassword}
-        setPassword={setLockPassword}
-        onLock={handleLockApiKey}
-        onUnlock={handleUnlockApiKey}
-      />
+          {results && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Scraping Summary</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <SummaryItem
+                  label="Input Tokens"
+                  value={results.inputTokens.toString()}
+                />
+                <SummaryItem
+                  label="Output Tokens"
+                  value={results.outputTokens.toString()}
+                />
+                <SummaryItem
+                  label="Total Cost"
+                  value={`$${results.totalCost.toFixed(4)}`}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </form>
+      </Form>
+
+      <Dialog open={showLockDialog} onOpenChange={setShowLockDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isApiKeyLocked ? "Unlock API Key" : "Lock API Key"}
+            </DialogTitle>
+          </DialogHeader>
+          <Input
+            type="password"
+            placeholder={
+              isApiKeyLocked
+                ? "Enter password to unlock"
+                : "Set a password to lock"
+            }
+            value={lockPassword}
+            onChange={(e) => setLockPassword(e.target.value)}
+          />
+          <DialogFooter>
+            <Button onClick={() => setShowLockDialog(false)} variant="outline">
+              Cancel
+            </Button>
+            <Button
+              onClick={isApiKeyLocked ? handleUnlockApiKey : handleLockApiKey}
+            >
+              {isApiKeyLocked ? "Unlock" : "Lock"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ScrollArea>
   );
 };
@@ -545,9 +479,9 @@ const ApiKeyActions = ({
     <IconButton
       icon={
         showApiKey ? (
-          <EyeOff className="h-4 w-4" />
+          <EyeOff className="w-4 h-4" />
         ) : (
-          <Eye className="h-4 w-4" />
+          <Eye className="w-4 h-4" />
         )
       }
       onClick={() => setShowApiKey(!showApiKey)}
@@ -556,9 +490,9 @@ const ApiKeyActions = ({
     <IconButton
       icon={
         isCopied ? (
-          <Check className="h-4 w-4 text-green-500" />
+          <Check className="w-4 h-4 text-green-500" />
         ) : (
-          <Copy className="h-4 w-4" />
+          <Copy className="w-4 h-4" />
         )
       }
       onClick={copyToClipboard}
@@ -567,9 +501,9 @@ const ApiKeyActions = ({
     <IconButton
       icon={
         isApiKeyLocked ? (
-          <Lock className="h-4 w-4" />
+          <Lock className="w-4 h-4" />
         ) : (
-          <Unlock className="h-4 w-4" />
+          <Unlock className="w-4 h-4" />
         )
       }
       onClick={() => setShowLockDialog(true)}
@@ -606,53 +540,6 @@ const SummaryItem = ({ label, value }: SummaryItemProps) => (
     <span>{label}:</span>
     <span className="font-semibold">{value}</span>
   </div>
-);
-
-interface LockUnlockDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  isLocked: boolean;
-  password: string;
-  setPassword: (value: string) => void;
-  onLock: () => void;
-  onUnlock: () => void;
-}
-
-const LockUnlockDialog = ({
-  isOpen,
-  onClose,
-  isLocked,
-  password,
-  setPassword,
-  onLock,
-  onUnlock,
-}: LockUnlockDialogProps) => (
-  <Dialog open={isOpen} onOpenChange={onClose}>
-    <DialogContent className="sm:max-w-[425px]">
-      <DialogHeader>
-        <DialogTitle>
-          {isLocked ? "Unlock API Key" : "Lock API Key"}
-        </DialogTitle>
-      </DialogHeader>
-      <Input
-        type="password"
-        placeholder={
-          isLocked ? "Enter password to unlock" : "Set a password to lock"
-        }
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className="mt-4"
-      />
-      <DialogFooter className="mt-6">
-        <Button onClick={onClose} variant="outline">
-          Cancel
-        </Button>
-        <Button onClick={isLocked ? onUnlock : onLock} className="ml-2">
-          {isLocked ? "Unlock" : "Lock"}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
 );
 
 export default Sidebar;

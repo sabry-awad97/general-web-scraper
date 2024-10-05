@@ -5,7 +5,7 @@ use std::sync::Arc;
 use ws::Message;
 
 use crate::error::AppError;
-use crate::models::{ScrapeParams, ScrapingResult, WebSocketMessage};
+use crate::models::{ScrapeParams, ScrapingResult};
 use crate::services::{AIService, CrawlerService, WebSocketService};
 use crate::utils::get_all_models;
 
@@ -116,7 +116,6 @@ pub async fn clear_scraping_result(
 #[post("/crawl", data = "<params>")]
 pub async fn crawl(
     params: Json<ScrapeParams>,
-    websocket_service: &State<Arc<WebSocketService>>,
     crawler_service: &State<Arc<CrawlerService>>,
 ) -> Result<(), rocket::http::Status> {
     log::info!(
@@ -125,45 +124,17 @@ pub async fn crawl(
         params
     );
 
-    let start_message = format!("Crawling started for {}", params.url);
-    match websocket_service
-        .send_message(WebSocketMessage::progress(start_message.clone()))
-        .await
-    {
-        Ok(_) => log::info!("Successfully sent crawl start message: {}", start_message),
-        Err(e) => log::error!(
-            "Failed to send crawl start message: {}. Error: {}",
-            start_message,
-            e
-        ),
-    }
-
     let params = params.into_inner();
     let result: Result<(), AppError> = crawler_service.crawl(params.clone()).await;
 
     match result {
         Ok(_) => {
             let success_message = format!("Crawling completed for {}", params.url);
-            match websocket_service
-                .send_message(WebSocketMessage::progress(success_message.clone()))
-                .await
-            {
-                Ok(_) => {
-                    log::info!(
-                        "Successfully sent crawl completion message: {}",
-                        success_message
-                    );
-                    Ok(())
-                }
-                Err(e) => {
-                    log::error!(
-                        "Failed to send crawl completion message: {}. Error: {}",
-                        success_message,
-                        e
-                    );
-                    Err(rocket::http::Status::InternalServerError)
-                }
-            }
+            log::info!(
+                "Successfully sent crawl completion message: {}",
+                success_message
+            );
+            Ok(())
         }
         Err(e) => {
             log::error!("Crawl failed: {}", e);

@@ -5,11 +5,7 @@ use reqwest::Client;
 use scraper::{Html, Selector};
 use serde::Serialize;
 
-use crate::{
-    error::AppError,
-    models::{ScrapeParams, WebSocketMessage},
-    services::{AIService, WebSocketService},
-};
+use crate::{error::AppError, models::ScrapeParams, services::AIService};
 
 #[async_trait]
 pub trait Spider: Send + Sync {
@@ -25,7 +21,6 @@ pub trait Spider: Send + Sync {
 pub struct GenericSpider {
     http_client: Client,
     selectors: Vec<Selector>,
-    websocket_service: Arc<WebSocketService>,
     ai_service: Arc<AIService>,
     scrape_params: ScrapeParams,
 }
@@ -34,7 +29,6 @@ impl GenericSpider {
     pub fn new(
         selectors: Vec<&str>,
         ai_service: Arc<AIService>,
-        websocket_service: Arc<WebSocketService>,
         scrape_params: ScrapeParams,
     ) -> Result<Self, AppError> {
         let http_timeout = Duration::from_secs(6);
@@ -51,7 +45,6 @@ impl GenericSpider {
         Ok(Self {
             http_client,
             selectors,
-            websocket_service,
             ai_service,
             scrape_params,
         })
@@ -88,10 +81,6 @@ impl Spider for GenericSpider {
     }
 
     async fn process(&self, item: Self::Item) -> Result<(), Self::Error> {
-        self.websocket_service
-            .send_message(WebSocketMessage::raw(&item))
-            .await?;
-
         if self.scrape_params.enable_scraping {
             self.ai_service
                 .extract_items(&item, &self.scrape_params)

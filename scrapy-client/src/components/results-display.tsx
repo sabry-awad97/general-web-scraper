@@ -1,15 +1,16 @@
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -21,17 +22,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ScrapedItems, ScrapingResult } from "@/types";
 import { FileJson, FileSpreadsheet, Maximize2, Minimize2 } from "lucide-react";
-import { useState } from "react";
-import { ScrapedItems, ScrapingResult } from "../types";
+import React, { useState } from "react";
 
 interface ResultsDisplayProps {
   results: ScrapingResult;
 }
 
-export default function ResultsDisplay({ results }: ResultsDisplayProps) {
+const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results }) => {
   const [insightsZoomed, setInsightsZoomed] = useState(false);
   const [navigationZoomed, setNavigationZoomed] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const handleDownloadJSON = (data: ScrapedItems, filename: string) => {
     const jsonString = JSON.stringify(data, null, 2);
@@ -77,109 +79,125 @@ export default function ResultsDisplay({ results }: ResultsDisplayProps) {
     zoomState: boolean,
     setZoomState: (state: boolean) => void,
     downloadPrefix: string,
-  ) => (
-    <div className="relative">
-      <div className="absolute z-10 flex gap-2 right-2 top-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={() => setZoomState(!zoomState)}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                {zoomState ? (
-                  <Minimize2 className="w-4 h-4" />
-                ) : (
-                  <Maximize2 className="w-4 h-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{zoomState ? "Minimize" : "Maximize"}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={() =>
-                  handleDownloadJSON(data, `${downloadPrefix}_data.json`)
-                }
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <FileJson className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Download JSON</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={() =>
-                  handleDownloadCSV(data, `${downloadPrefix}_data.csv`)
-                }
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Download CSV</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-      <ScrollArea
-        className={`rounded-md border ${zoomState ? "h-[80vh]" : "h-[300px]"}`}
-      >
-        <Table className="w-full whitespace-nowrap">
-          <TableCaption>{caption}</TableCaption>
-          <TableHeader>
-            <TableRow>
-              {data[0] &&
-                Object.keys(data[0]).map((key) => (
-                  <TableHead key={key} className="font-semibold">
-                    {key}
-                  </TableHead>
+  ) => {
+    const filteredData = data.filter((item) =>
+      Object.values(item).some((value) =>
+        String(value).toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    );
+
+    return (
+      <Card className="relative overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>{caption}</CardTitle>
+          <div className="flex items-center space-x-2">
+            <Input
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-64"
+              // startAdornment={
+              //   <Search className="w-4 h-4 text-muted-foreground" />
+              // }
+            />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setZoomState(!zoomState)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {zoomState ? (
+                      <Minimize2 className="w-4 h-4" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{zoomState ? "Minimize" : "Maximize"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() =>
+                      handleDownloadJSON(data, `${downloadPrefix}_data.json`)
+                    }
+                    variant="outline"
+                    size="sm"
+                  >
+                    <FileJson className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Download JSON</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() =>
+                      handleDownloadCSV(data, `${downloadPrefix}_data.csv`)
+                    }
+                    variant="outline"
+                    size="sm"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Download CSV</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea
+            className={`rounded-md border ${zoomState ? "h-[80vh]" : "h-[300px]"}`}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {filteredData[0] &&
+                    Object.keys(filteredData[0]).map((key) => (
+                      <TableHead key={key} className="font-semibold">
+                        {key}
+                      </TableHead>
+                    ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredData.map((item, index) => (
+                  <TableRow key={index}>
+                    {Object.values(item).map((value, valueIndex) => (
+                      <TableCell key={valueIndex}>
+                        {typeof value === "object"
+                          ? JSON.stringify(value)
+                          : String(value)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((item, index) => (
-              <TableRow key={index}>
-                {Object.values(item).map((value, valueIndex) => (
-                  <TableCell key={valueIndex}>
-                    {typeof value === "object"
-                      ? JSON.stringify(value)
-                      : String(value)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
-    </div>
-  );
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="mb-3 text-2xl font-semibold text-white">
-          Harvested Insights
-        </h2>
+        <h2 className="mb-3 text-2xl font-semibold">Harvested Insights</h2>
         <Dialog open={insightsZoomed} onOpenChange={setInsightsZoomed}>
           <DialogContent className="h-full max-h-[90vh] w-full max-w-[90vw]">
             <DialogHeader>
@@ -206,9 +224,7 @@ export default function ResultsDisplay({ results }: ResultsDisplayProps) {
 
       {results.paginationInfo && (
         <section>
-          <h2 className="mb-3 text-2xl font-semibold text-white">
-            Navigation Landscape
-          </h2>
+          <h2 className="mb-3 text-2xl font-semibold">Navigation Landscape</h2>
           <Dialog open={navigationZoomed} onOpenChange={setNavigationZoomed}>
             <DialogContent className="h-full max-h-[90vh] w-full max-w-[90vw]">
               <DialogHeader>
@@ -235,4 +251,6 @@ export default function ResultsDisplay({ results }: ResultsDisplayProps) {
       )}
     </div>
   );
-}
+};
+
+export default ResultsDisplay;

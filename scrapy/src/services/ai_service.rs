@@ -13,7 +13,7 @@ use log::{debug, error, info};
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-use crate::models::{ScrapeParams, UsageMetadata, WebSocketMessage};
+use crate::models::{ScrapeParams, UsageMetadata};
 use crate::{error::AppError, models::AiScrapingResult};
 use crate::{services::WebSocketService, utils::calculate_price};
 
@@ -62,10 +62,6 @@ impl AIService {
         let system_prompt = self.build_system_prompt();
         let user_prompt = self.build_prompt(html, params);
         let request = self.build_request(system_prompt, user_prompt);
-
-        self.websocket_service
-            .send_message(WebSocketMessage::progress("Starting AI processing..."))
-            .await?;
 
         let response = self.process_ai_request(request).await?;
         let result = self.handle_ai_response(response).await?;
@@ -155,14 +151,9 @@ impl AIService {
 
     async fn handle_failed_response(
         e: GoogleAPIError,
-        websocket_service: Arc<WebSocketService>,
+        _websocket_service: Arc<WebSocketService>,
         done_tx: oneshot::Sender<Result<(), AppError>>,
     ) {
-        let error_msg = format!("AI processing failed: {}", e);
-        error!("{}", error_msg);
-        let _ = websocket_service
-            .send_message(WebSocketMessage::error(&error_msg))
-            .await;
         let _ = done_tx.send(Err(AppError::AI(e.to_string())));
     }
 
@@ -176,9 +167,6 @@ impl AIService {
             tokio::select! {
                 Some(chunk) = rx.recv() => {
                     full_response.push_str(&chunk);
-                    self.websocket_service
-                        .send_message(WebSocketMessage::scraping_result(&chunk))
-                        .await?;
                 }
                 result = &mut done_rx => {
                     return self.handle_done_signal(result).await;
@@ -192,22 +180,11 @@ impl AIService {
         result: Result<Result<(), AppError>, oneshot::error::RecvError>,
     ) -> Result<(), AppError> {
         match result {
-            Ok(Ok(())) => {
-                self.websocket_service
-                    .send_message(WebSocketMessage::progress("AI processing completed"))
-                    .await?;
-                Ok(())
-            }
+            Ok(Ok(())) => Ok(()),
             Ok(Err(e)) => Err(e),
             Err(e) => {
                 let error_msg = format!("AI processing task failed unexpectedly: {}", e);
-                error!("{}", error_msg);
-                self.websocket_service
-                    .send_message(WebSocketMessage::error(&error_msg))
-                    .await?;
-                Err(AppError::AI(
-                    "AI processing task failed unexpectedly".to_string(),
-                ))
+                Err(AppError::AI(error_msg))
             }
         }
     }
@@ -221,27 +198,14 @@ impl AIService {
                         for item in json_array {
                             self.store_scraped_item(item.clone()).await;
                         }
-                        self.websocket_service
-                            .send_message(WebSocketMessage::success(&json_array))
-                            .await?;
 
                         Ok(parsed_response)
                     }
                     AIResponse::JsonObject(ref json_object) => {
                         self.store_scraped_item(json_object.clone()).await;
-                        self.websocket_service
-                            .send_message(WebSocketMessage::success(&json_object))
-                            .await?;
-
                         Ok(parsed_response)
                     }
-                    AIResponse::Text(ref text) => {
-                        self.websocket_service
-                            .send_message(WebSocketMessage::scraping_result(&text))
-                            .await?;
-
-                        Ok(parsed_response)
-                    }
+                    AIResponse::Text(ref _text) => Ok(parsed_response),
                 }
             }
             Err(e) => {
@@ -249,9 +213,6 @@ impl AIService {
                 error!("{}", error_msg);
                 self.finalize_scraping_result(false, Some(error_msg.clone()))
                     .await;
-                self.websocket_service
-                    .send_message(WebSocketMessage::error(&error_msg))
-                    .await?;
                 Err(e)
             }
         }

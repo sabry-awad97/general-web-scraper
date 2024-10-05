@@ -30,7 +30,6 @@ impl CrawlerService {
         let spider = Arc::new(GenericSpider::new(
             selectors,
             self.ai_service.clone(),
-            self.websocket_service.clone(),
             params.clone(),
         )?);
 
