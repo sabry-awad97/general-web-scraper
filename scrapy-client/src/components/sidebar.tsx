@@ -2,13 +2,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Form,
   FormControl,
   FormDescription,
@@ -27,24 +20,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useClipboard } from "@/hooks/useClipboard";
 import { secureStorage } from "@/lib/secure-storage";
 import { scrapeSchema } from "@/schemas";
 import { ScrapeSchema, ScrapingResult } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Check,
-  Copy,
-  Eye,
-  EyeOff,
-  Info,
-  Loader2,
-  Lock,
-  Unlock,
-  X,
-} from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, Unlock, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -69,7 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [isApiKeyLocked, setIsApiKeyLocked] = useState(false);
   const [showLockDialog, setShowLockDialog] = useState(false);
   const [lockPassword, setLockPassword] = useState("");
-  const { copyToClipboard, isCopied } = useClipboard();
   const form = useForm<ScrapeSchema>({
     resolver: zodResolver(scrapeSchema),
     defaultValues: {
@@ -134,258 +122,279 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <ScrollArea className="h-screen w-80">
+    <ScrollArea className="h-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 space-y-6">
-          <h2 className="mb-6 text-2xl font-bold">Scraper Settings</h2>
-
-          <FormField
-            control={form.control}
-            name="apiKey"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <span>API Key</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="w-3 h-3 ml-1 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            Your API key is securely encrypted and stored
-                            locally.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input
-                      type={showApiKey ? "text" : "password"}
-                      placeholder="Enter your API key"
-                      {...field}
-                      onChange={(e) => handleApiKeyChange(e.target.value)}
-                      className="pr-24 transition-all duration-300"
-                      disabled={isApiKeyLocked}
-                    />
-                    <div className="absolute top-0 right-0 flex h-full">
-                      <ApiKeyActions
-                        showApiKey={showApiKey}
-                        setShowApiKey={setShowApiKey}
-                        isApiKeyLocked={isApiKeyLocked}
-                        copyToClipboard={() => copyToClipboard(field.value)}
-                        isCopied={isCopied}
-                        setShowLockDialog={setShowLockDialog}
-                      />
-                    </div>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="model"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center justify-between">
-                    <span>Model</span>
-                  </FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Model" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {models.map((model) => (
-                        <SelectItem key={model} value={model}>
-                          {model}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="url"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>URL to Scrape</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="enableScraping"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Enable Scraping</FormLabel>
-                    <FormDescription>
-                      Extract specific fields from the webpage
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            {form.watch("enableScraping") && (
+          <Card className="border-none shadow-lg">
+            <CardHeader className="rounded-t-xl bg-gradient-to-r from-primary/10 to-secondary/10">
+              <CardTitle className="text-2xl font-bold">
+                Scraping Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
               <FormField
                 control={form.control}
-                name="tags"
+                name="model"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fields to Extract</FormLabel>
-                    <FormControl>
-                      <div>
+                    <FormLabel>Model</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a model" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {models.map((model) => (
+                          <SelectItem key={model} value={model}>
+                            {model}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="apiKey"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>API Key</FormLabel>
+                    <div className="flex items-center space-x-2">
+                      <FormControl>
                         <Input
-                          placeholder="Add field and press Enter"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && e.currentTarget.value) {
-                              e.preventDefault();
-                              field.onChange([
-                                ...field.value,
-                                e.currentTarget.value,
-                              ]);
-                              e.currentTarget.value = "";
-                            }
-                          }}
+                          type={showApiKey ? "text" : "password"}
+                          placeholder="Enter your API key"
+                          {...field}
+                          onChange={(e) => handleApiKeyChange(e.target.value)}
+                          disabled={isApiKeyLocked}
+                          className="pr-10"
                         />
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {field.value.map((tag, index) => (
-                            <Badge key={index} variant="secondary">
-                              {tag}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto p-0 ml-1"
-                                onClick={() => {
-                                  const newTags = [...field.value];
-                                  newTags.splice(index, 1);
-                                  field.onChange(newTags);
-                                }}
-                              >
-                                <X className="w-3 h-3" />
-                              </Button>
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </FormControl>
+                      </FormControl>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setShowApiKey(!showApiKey)}
+                              className="absolute right-12"
+                            >
+                              {showApiKey ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {showApiKey ? "Hide API Key" : "Show API Key"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setShowLockDialog(true)}
+                            >
+                              {isApiKeyLocked ? (
+                                <Lock className="w-4 h-4" />
+                              ) : (
+                                <Unlock className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isApiKeyLocked ? "Unlock API Key" : "Lock API Key"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
 
-            <FormField
-              control={form.control}
-              name="enablePagination"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">
-                      Enable Pagination
-                    </FormLabel>
-                    <FormDescription>
-                      Scrape multiple pages automatically
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            {form.watch("enablePagination") && (
               <FormField
                 control={form.control}
-                name="paginationDetails"
+                name="url"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Pagination Details</FormLabel>
+                    <FormLabel>URL to Scrape</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Enter pagination details"
-                        {...field}
-                      />
+                      <Input placeholder="https://example.com" {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Specify how to navigate through pages (e.g., "Next" button
-                      selector)
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
-          </div>
 
-          <div className="flex space-x-2">
-            <Button
-              type="submit"
-              className="flex-1 transition-all duration-300"
-              disabled={isPending}
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Scraping...
-                </>
-              ) : (
-                "Start Scraping"
+              <FormField
+                control={form.control}
+                name="enableScraping"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg bg-background/50">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        Enable Scraping
+                      </FormLabel>
+                      <FormDescription>
+                        Extract specific fields from the webpage
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {form.watch("enableScraping") && (
+                <FormField
+                  control={form.control}
+                  name="tags"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fields to Extract</FormLabel>
+                      <FormControl>
+                        <div>
+                          <Input
+                            placeholder="Add field and press Enter"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && e.currentTarget.value) {
+                                e.preventDefault();
+                                field.onChange([
+                                  ...field.value,
+                                  e.currentTarget.value,
+                                ]);
+                                e.currentTarget.value = "";
+                              }
+                            }}
+                          />
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {field.value.map((tag, index) => (
+                              <Badge key={index} variant="secondary">
+                                {tag}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto p-0 ml-1"
+                                  onClick={() => {
+                                    const newTags = [...field.value];
+                                    newTags.splice(index, 1);
+                                    field.onChange(newTags);
+                                  }}
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1 transition-all duration-300"
-              onClick={handleReset}
-            >
-              Reset
-            </Button>
-          </div>
+
+              <FormField
+                control={form.control}
+                name="enablePagination"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg bg-background/50">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        Enable Pagination
+                      </FormLabel>
+                      <FormDescription>
+                        Scrape multiple pages automatically
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {form.watch("enablePagination") && (
+                <FormField
+                  control={form.control}
+                  name="paginationDetails"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pagination Details</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter pagination details"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Specify how to navigate through pages (e.g., "Next"
+                        button selector)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <div className="flex space-x-2">
+                <Button
+                  type="submit"
+                  className="flex-1 transition-all duration-300 bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80"
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Scraping...
+                    </>
+                  ) : (
+                    "Start Scraping"
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 transition-all duration-300"
+                  onClick={handleReset}
+                >
+                  Reset
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {results &&
             results.map((r, i) => (
-              <Card key={i}>
-                <CardHeader>
+              <Card key={i} className="border-none shadow-lg">
+                <CardHeader className="rounded-t-xl bg-gradient-to-r from-primary/10 to-secondary/10">
                   <CardTitle className="flex items-center justify-between">
                     <span>Scraping Summary</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="pt-4 space-y-2">
                   <SummaryItem
                     label="Input Tokens"
                     value={r.inputTokens.toString()}
@@ -437,78 +446,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   );
 };
 
-interface ApiKeyActionsProps {
-  showApiKey: boolean;
-  setShowApiKey: (value: boolean) => void;
-  isApiKeyLocked: boolean;
-  copyToClipboard: () => void;
-  isCopied: boolean;
-  setShowLockDialog: (value: boolean) => void;
-}
-
-const ApiKeyActions = ({
-  showApiKey,
-  setShowApiKey,
-  isApiKeyLocked,
-  copyToClipboard,
-  isCopied,
-  setShowLockDialog,
-}: ApiKeyActionsProps) => (
-  <>
-    <IconButton
-      icon={
-        showApiKey ? (
-          <EyeOff className="w-4 h-4" />
-        ) : (
-          <Eye className="w-4 h-4" />
-        )
-      }
-      onClick={() => setShowApiKey(!showApiKey)}
-      disabled={isApiKeyLocked}
-    />
-    <IconButton
-      icon={
-        isCopied ? (
-          <Check className="w-4 h-4 text-green-500" />
-        ) : (
-          <Copy className="w-4 h-4" />
-        )
-      }
-      onClick={copyToClipboard}
-      disabled={isApiKeyLocked}
-    />
-    <IconButton
-      icon={
-        isApiKeyLocked ? (
-          <Lock className="w-4 h-4" />
-        ) : (
-          <Unlock className="w-4 h-4" />
-        )
-      }
-      onClick={() => setShowLockDialog(true)}
-    />
-  </>
-);
-
-interface IconButtonProps {
-  icon: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-}
-
-const IconButton = ({ icon, onClick, disabled }: IconButtonProps) => (
-  <Button
-    type="button"
-    variant="ghost"
-    size="sm"
-    className="h-full px-2 hover:bg-transparent"
-    onClick={onClick}
-    disabled={disabled}
-  >
-    {icon}
-  </Button>
-);
-
 interface SummaryItemProps {
   label: string;
   value: string;
@@ -516,7 +453,7 @@ interface SummaryItemProps {
 
 const SummaryItem = ({ label, value }: SummaryItemProps) => (
   <div className="flex justify-between">
-    <span>{label}:</span>
+    <span className="text-muted-foreground">{label}:</span>
     <span className="font-semibold">{value}</span>
   </div>
 );

@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -23,10 +24,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ScrapedItems, ScrapingResult } from "@/types";
-import { FileJson, FileSpreadsheet, Maximize2, Minimize2 } from "lucide-react";
+import {
+  AlertCircle,
+  FileJson,
+  FileSpreadsheet,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import React, { useState } from "react";
-import { AlertCircle } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ResultsDisplayProps {
   results: ScrapingResult[];
@@ -63,54 +68,101 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results }) => {
         )
         .join("\n");
       const csvString = `${headers}\n${csvData}`;
-      const blob = new Blob([csvString], { type: "text/csv" });
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-    } else {
-      console.log("No data to export");
     }
   };
 
   const renderTable = (
     data: ScrapedItems,
-    caption: string,
-    zoomState: boolean,
-    setZoomState: (state: boolean) => void,
-    downloadPrefix: string,
+    description: string,
+    isZoomed: boolean,
+    setZoomed: React.Dispatch<React.SetStateAction<boolean>>,
+    type: "insights" | "navigation",
   ) => {
+    if (!data || data.length === 0) {
+      return (
+        <Alert variant="destructive">
+          <AlertCircle className="w-4 h-4" />
+          <AlertTitle>No data available</AlertTitle>
+          <AlertDescription>
+            There is no data to display for this section.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
     const filteredData = data.filter((item) =>
-      Object.values(item).some((value) =>
-        String(value).toLowerCase().includes(searchTerm.toLowerCase()),
+      Object.values(item).some(
+        (value) =>
+          typeof value === "string" &&
+          value.toLowerCase().includes(searchTerm.toLowerCase()),
       ),
     );
 
+    const headers = Object.keys(data[0] as Record<string, unknown>);
+
     return (
-      <Card className="relative overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>{caption}</CardTitle>
-          <div className="flex items-center space-x-2">
-            <Input
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-64"
-              // startAdornment={
-              //   <Search className="w-4 h-4 text-muted-foreground" />
-              // }
-            />
+      <Card className="h-full w-full bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/30">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+          <CardTitle className="text-sm font-medium">{description}</CardTitle>
+          <div className="flex space-x-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    onClick={() => setZoomState(!zoomState)}
                     variant="outline"
-                    size="sm"
+                    size="icon"
+                    onClick={() =>
+                      handleDownloadJSON(
+                        data,
+                        `${type}_data_${new Date().toISOString()}.json`,
+                      )
+                    }
                   >
-                    {zoomState ? (
+                    <FileJson className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Download as JSON</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() =>
+                      handleDownloadCSV(
+                        data,
+                        `${type}_data_${new Date().toISOString()}.csv`,
+                      )
+                    }
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Download as CSV</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setZoomed(!isZoomed)}
+                  >
+                    {isZoomed ? (
                       <Minimize2 className="w-4 h-4" />
                     ) : (
                       <Maximize2 className="w-4 h-4" />
@@ -118,102 +170,57 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results }) => {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{zoomState ? "Minimize" : "Maximize"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={() =>
-                      handleDownloadJSON(data, `${downloadPrefix}_data.json`)
-                    }
-                    variant="outline"
-                    size="sm"
-                  >
-                    <FileJson className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Download JSON</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={() =>
-                      handleDownloadCSV(data, `${downloadPrefix}_data.csv`)
-                    }
-                    variant="outline"
-                    size="sm"
-                  >
-                    <FileSpreadsheet className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Download CSV</p>
+                  <p>{isZoomed ? "Minimize" : "Maximize"}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
         </CardHeader>
         <CardContent>
-          <ScrollArea
-            className={`rounded-md border ${zoomState ? "h-[80vh]" : "h-[300px]"}`}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {filteredData[0] &&
-                    Object.keys(filteredData[0]).map((key) => (
-                      <TableHead key={key} className="font-semibold">
-                        {key}
-                      </TableHead>
-                    ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredData.map((item, index) => (
-                  <TableRow key={index}>
-                    {Object.values(item).map((value, valueIndex) => (
-                      <TableCell key={valueIndex}>
-                        {typeof value === "object"
-                          ? JSON.stringify(value)
-                          : String(value)}
-                      </TableCell>
+          <div className="space-y-4">
+            <Input
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+            <ScrollArea className="h-[calc(100vh-300px)] w-full rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {headers.map((header) => (
+                      <TableHead key={header}>{header}</TableHead>
                     ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+                </TableHeader>
+                <TableBody>
+                  {filteredData.map((item, index) => (
+                    <TableRow key={index}>
+                      {headers.map((header) => (
+                        <TableCell key={header}>
+                          {(item as Record<string, unknown>)[header] as string}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </div>
         </CardContent>
       </Card>
     );
   };
-
-  if (!results || results.length === 0) {
-    return (
-      <Alert variant="default" className="max-w-2xl mx-auto mt-8">
-        <AlertCircle className="w-4 h-4" />
-        <AlertTitle>No results available</AlertTitle>
-        <AlertDescription>
-          It seems we haven't harvested any insights yet. Start a new scraping job to populate this space with valuable data.
-        </AlertDescription>
-      </Alert>
-    );
-  }
 
   return (
     <div className="space-y-8">
       {results.map((result, index) => (
         <React.Fragment key={index}>
           <section>
-            <h2 className="mb-3 text-2xl font-semibold">Harvested Insights - Job {index + 1}</h2>
+            <h2 className="mb-3 text-2xl font-semibold">
+              Harvested Insights - Job {index + 1}
+            </h2>
             <Dialog open={insightsZoomed} onOpenChange={setInsightsZoomed}>
               <DialogContent className="h-full max-h-[90vh] w-full max-w-[90vw]">
                 <DialogHeader>
@@ -237,11 +244,15 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results }) => {
                 "insights",
               )}
           </section>
-
           {result.paginationInfo && (
             <section>
-              <h2 className="mb-3 text-2xl font-semibold">Navigation Landscape - Job {index + 1}</h2>
-              <Dialog open={navigationZoomed} onOpenChange={setNavigationZoomed}>
+              <h2 className="mb-3 text-2xl font-semibold">
+                Navigation Landscape - Job {index + 1}
+              </h2>
+              <Dialog
+                open={navigationZoomed}
+                onOpenChange={setNavigationZoomed}
+              >
                 <DialogContent className="h-full max-h-[90vh] w-full max-w-[90vw]">
                   <DialogHeader>
                     <DialogTitle>Navigation Landscape</DialogTitle>
@@ -270,5 +281,4 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results }) => {
     </div>
   );
 };
-
 export default ResultsDisplay;
