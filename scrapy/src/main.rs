@@ -61,6 +61,7 @@ fn rocket() -> _ {
                 routes::index,
                 routes::crawl,
                 routes::websocket,
+                routes::sse_events,
                 routes::get_models
             ],
         )

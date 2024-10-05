@@ -7,8 +7,10 @@ use crate::services::CrawlerService;
 use crate::utils::get_all_models;
 
 pub use ws::websocket;
+pub use events::sse_events;
 
 mod ws;
+mod events;
 
 #[get("/")]
 pub fn index() -> &'static str {
