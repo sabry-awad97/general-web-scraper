@@ -63,39 +63,12 @@ const api = {
   },
   crawl: async (params: ScrapeSchema) => {
     try {
-      const response = await apiClient.post("/crawl", params);
+      const response = await apiClient.post<ScrapingResult[]>("/crawl", params);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
         throw new Error(
           error.response?.data?.message || "An error occurred while crawling",
-        );
-      }
-      throw error;
-    }
-  },
-  getScrapingResult: async () => {
-    try {
-      const response = await apiClient.get<ScrapingResult>(`/scraping-result`);
-      return response.data;
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        throw new Error(
-          error.response?.data?.message || "An error occurred while crawling",
-        );
-      }
-      throw error;
-    }
-  },
-  clearScrapingResult: async () => {
-    try {
-      const response = await apiClient.post("/clear-scraping-result");
-      return response.data;
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        throw new Error(
-          error.response?.data?.message ||
-            "An error occurred while clearing scraping result",
         );
       }
       throw error;

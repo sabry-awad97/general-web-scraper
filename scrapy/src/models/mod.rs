@@ -46,11 +46,8 @@ pub struct UsageMetadata {
 pub struct AiScrapingResult {
     pub model: String,
     pub start_time: DateTime<Utc>,
-    pub end_time: DateTime<Utc>,
-    pub duration_ms: i64,
-    pub success: bool,
-    pub error_message: Option<String>,
-    pub scraped_items: Vec<serde_json::Value>,
+    pub end_time: Option<DateTime<Utc>>,
+    pub data: serde_json::Value,
     pub usage_metadata: UsageMetadata,
 }
 

@@ -6,16 +6,13 @@ import { Menu, User } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import AlertManager from "./components/alert-manager";
-import MessagePreview from "./components/message-preview";
 import ResultsDisplay from "./components/results-display";
 import Sidebar from "./components/sidebar";
 import { ThemeToggle } from "./components/theme-toggle";
 import WelcomeCard from "./components/welcome-card";
-import { useClearScrapingResult } from "./hooks/useClearScrapingResult";
 import { useCrawl } from "./hooks/useCrawl";
 import { useModels } from "./hooks/useModels";
-import { useScrapingResult } from "./hooks/useScrapingResult";
-import { ScrapeSchema } from "./types";
+import { ScrapeSchema, ScrapingResult } from "./types";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -27,15 +24,15 @@ function App() {
     isError,
     error: crawlError,
   } = useCrawl();
-  const { data: scrapingResult = null, refetch: refetchScrapingResult } =
-    useScrapingResult();
-  const { mutateAsync: clearScrapingResult } = useClearScrapingResult();
+
+  const [scrapingResults, setScrapingResults] = useState<ScrapingResult[] | null>(
+    null,
+  );
 
   const onSubmit = async (values: ScrapeSchema) => {
     try {
-      await clearScrapingResult();
-      await crawl(values);
-      refetchScrapingResult();
+      const results = await crawl(values);
+      setScrapingResults(results);
       celebrateSuccess();
     } catch (error) {
       handleError(error);
@@ -47,7 +44,7 @@ function App() {
       {sidebarOpen && (
         <Sidebar
           models={models}
-          results={scrapingResult}
+          results={scrapingResults}
           onSubmit={onSubmit}
           isPending={isPending}
         />
@@ -69,7 +66,7 @@ function App() {
 
         <main className="flex-1 p-6 overflow-auto">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-4xl font-bold text-transparent bg-gradient-to-r from-primary to-primary-foreground bg-clip-text">
+            <h1 className="text-4xl font-bold bg-clip-text">
               Universal Web Scraper 🦑
             </h1>
           </div>
@@ -86,14 +83,11 @@ function App() {
               <TabsTrigger value="messages">Messages</TabsTrigger>
             </TabsList>
             <TabsContent value="results">
-              {isSuccess && scrapingResult ? (
-                <ResultsDisplay results={scrapingResult} />
+              {isSuccess && scrapingResults ? (
+                <ResultsDisplay results={scrapingResults} />
               ) : (
                 <WelcomeCard />
               )}
-            </TabsContent>
-            <TabsContent value="messages">
-              <MessagePreview />
             </TabsContent>
           </Tabs>
         </main>

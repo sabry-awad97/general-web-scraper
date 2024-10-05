@@ -4,9 +4,8 @@ use rocket::{get, post, State};
 use std::sync::Arc;
 use ws::Message;
 
-use crate::error::AppError;
 use crate::models::{ScrapeParams, ScrapingResult};
-use crate::services::{AIService, CrawlerService, WebSocketService};
+use crate::services::{CrawlerService, WebSocketService};
 use crate::utils::get_all_models;
 
 #[get("/")]
@@ -89,55 +88,39 @@ async fn handle_websocket(
     Ok(())
 }
 
-#[get("/scraping-result")]
-pub async fn get_scraping_result(
-    ai_service: &State<Arc<AIService>>,
-) -> Result<Json<Option<ScrapingResult>>, rocket::http::Status> {
-    match ai_service.get_current_scraping_result().await {
-        Some(result) => Ok(Json(Some(ScrapingResult {
-            all_data: result.scraped_items,
-            input_tokens: result.usage_metadata.input_tokens,
-            output_tokens: result.usage_metadata.output_tokens,
-            total_cost: result.usage_metadata.total_cost,
-            pagination_info: None,
-        }))),
-        None => Ok(Json(None)),
-    }
-}
-
-#[post("/clear-scraping-result")]
-pub async fn clear_scraping_result(
-    ai_service: &State<Arc<AIService>>,
-) -> Result<Json<()>, rocket::http::Status> {
-    ai_service.clear_current_scraping_result().await;
-    Ok(Json(()))
-}
-
 #[post("/crawl", data = "<params>")]
 pub async fn crawl(
     params: Json<ScrapeParams>,
     crawler_service: &State<Arc<CrawlerService>>,
-) -> Result<(), rocket::http::Status> {
+) -> Result<Json<Vec<ScrapingResult>>, rocket::http::Status> {
     log::info!(
-        "Received crawl request for URL: {} with parameters: {:#?}",
+        "Initiating crawl request for URL: {} with parameters: {:#?}",
         params.url,
         params
     );
 
     let params = params.into_inner();
-    let result: Result<(), AppError> = crawler_service.crawl(params.clone()).await;
-
-    match result {
-        Ok(_) => {
-            let success_message = format!("Crawling completed for {}", params.url);
+    match crawler_service.crawl(params.clone()).await {
+        Ok(results) => {
             log::info!(
-                "Successfully sent crawl completion message: {}",
-                success_message
+                "Crawl operation completed successfully for URL: {}",
+                params.url
             );
-            Ok(())
+            log::debug!("Crawl results: {:?}", results);
+            let response = results
+                .into_iter()
+                .map(|r| ScrapingResult {
+                    all_data: r.data.as_array().unwrap_or(&Vec::new()).to_vec(),
+                    input_tokens: r.usage_metadata.input_tokens,
+                    output_tokens: r.usage_metadata.output_tokens,
+                    total_cost: r.usage_metadata.total_cost,
+                    pagination_info: None,
+                })
+                .collect();
+            Ok(Json(response))
         }
         Err(e) => {
-            log::error!("Crawl failed: {}", e);
+            log::error!("Crawl operation failed: {}", e);
             Err(rocket::http::Status::InternalServerError)
         }
     }

@@ -25,9 +25,11 @@ import {
 import { ScrapedItems, ScrapingResult } from "@/types";
 import { FileJson, FileSpreadsheet, Maximize2, Minimize2 } from "lucide-react";
 import React, { useState } from "react";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ResultsDisplayProps {
-  results: ScrapingResult;
+  results: ScrapingResult[];
 }
 
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results }) => {
@@ -194,61 +196,77 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results }) => {
     );
   };
 
+  if (!results || results.length === 0) {
+    return (
+      <Alert variant="default" className="max-w-2xl mx-auto mt-8">
+        <AlertCircle className="w-4 h-4" />
+        <AlertTitle>No results available</AlertTitle>
+        <AlertDescription>
+          It seems we haven't harvested any insights yet. Start a new scraping job to populate this space with valuable data.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <div className="space-y-8">
-      <section>
-        <h2 className="mb-3 text-2xl font-semibold">Harvested Insights</h2>
-        <Dialog open={insightsZoomed} onOpenChange={setInsightsZoomed}>
-          <DialogContent className="h-full max-h-[90vh] w-full max-w-[90vw]">
-            <DialogHeader>
-              <DialogTitle>Harvested Insights</DialogTitle>
-            </DialogHeader>
-            {renderTable(
-              results.allData,
-              "Comprehensive overview of extracted data",
-              insightsZoomed,
-              setInsightsZoomed,
-              "insights",
-            )}
-          </DialogContent>
-        </Dialog>
-        {!insightsZoomed &&
-          renderTable(
-            results.allData,
-            "Comprehensive overview of extracted data",
-            insightsZoomed,
-            setInsightsZoomed,
-            "insights",
-          )}
-      </section>
-
-      {results.paginationInfo && (
-        <section>
-          <h2 className="mb-3 text-2xl font-semibold">Navigation Landscape</h2>
-          <Dialog open={navigationZoomed} onOpenChange={setNavigationZoomed}>
-            <DialogContent className="h-full max-h-[90vh] w-full max-w-[90vw]">
-              <DialogHeader>
-                <DialogTitle>Navigation Landscape</DialogTitle>
-              </DialogHeader>
-              {renderTable(
-                results.paginationInfo.pageUrls.map((url) => ({ url })),
-                "Discovered page URLs for comprehensive scraping",
-                navigationZoomed,
-                setNavigationZoomed,
-                "navigation",
+      {results.map((result, index) => (
+        <React.Fragment key={index}>
+          <section>
+            <h2 className="mb-3 text-2xl font-semibold">Harvested Insights - Job {index + 1}</h2>
+            <Dialog open={insightsZoomed} onOpenChange={setInsightsZoomed}>
+              <DialogContent className="h-full max-h-[90vh] w-full max-w-[90vw]">
+                <DialogHeader>
+                  <DialogTitle>Harvested Insights</DialogTitle>
+                </DialogHeader>
+                {renderTable(
+                  result.allData,
+                  "Comprehensive overview of extracted data",
+                  insightsZoomed,
+                  setInsightsZoomed,
+                  "insights",
+                )}
+              </DialogContent>
+            </Dialog>
+            {!insightsZoomed &&
+              renderTable(
+                result.allData,
+                "Comprehensive overview of extracted data",
+                insightsZoomed,
+                setInsightsZoomed,
+                "insights",
               )}
-            </DialogContent>
-          </Dialog>
-          {!navigationZoomed &&
-            renderTable(
-              results.paginationInfo.pageUrls.map((url) => ({ url })),
-              "Discovered page URLs for comprehensive scraping",
-              navigationZoomed,
-              setNavigationZoomed,
-              "navigation",
-            )}
-        </section>
-      )}
+          </section>
+
+          {result.paginationInfo && (
+            <section>
+              <h2 className="mb-3 text-2xl font-semibold">Navigation Landscape - Job {index + 1}</h2>
+              <Dialog open={navigationZoomed} onOpenChange={setNavigationZoomed}>
+                <DialogContent className="h-full max-h-[90vh] w-full max-w-[90vw]">
+                  <DialogHeader>
+                    <DialogTitle>Navigation Landscape</DialogTitle>
+                  </DialogHeader>
+                  {renderTable(
+                    result.paginationInfo.pageUrls.map((url) => ({ url })),
+                    "Discovered page URLs for comprehensive scraping",
+                    navigationZoomed,
+                    setNavigationZoomed,
+                    "navigation",
+                  )}
+                </DialogContent>
+              </Dialog>
+              {!navigationZoomed &&
+                renderTable(
+                  result.paginationInfo.pageUrls.map((url) => ({ url })),
+                  "Discovered page URLs for comprehensive scraping",
+                  navigationZoomed,
+                  setNavigationZoomed,
+                  "navigation",
+                )}
+            </section>
+          )}
+        </React.Fragment>
+      ))}
     </div>
   );
 };

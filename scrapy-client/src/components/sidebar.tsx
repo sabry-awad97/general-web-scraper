@@ -27,10 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useClearScrapingResult } from "@/hooks/useClearScrapingResult";
 import { useClipboard } from "@/hooks/useClipboard";
-import { useScrapingResult } from "@/hooks/useScrapingResult";
-import { useWebSocketContext } from "@/hooks/useWebSocketContext";
 import { secureStorage } from "@/lib/secure-storage";
 import { scrapeSchema } from "@/schemas";
 import { ScrapeSchema, ScrapingResult } from "@/types";
@@ -48,7 +45,6 @@ import {
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import {
   Tooltip,
   TooltipContent,
@@ -58,7 +54,7 @@ import {
 
 interface SidebarProps {
   models: string[];
-  results: ScrapingResult | null;
+  results: ScrapingResult[] | null;
   onSubmit: (data: ScrapeSchema) => void;
   isPending: boolean;
 }
@@ -74,10 +70,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [showLockDialog, setShowLockDialog] = useState(false);
   const [lockPassword, setLockPassword] = useState("");
   const { copyToClipboard, isCopied } = useClipboard();
-  const { mutateAsync: clearScrapingResult, isPending: isClearing } =
-    useClearScrapingResult();
-  const { refetch: refetchScrapingResult } = useScrapingResult();
-  const { clearHistory } = useWebSocketContext();
   const form = useForm<ScrapeSchema>({
     resolver: zodResolver(scrapeSchema),
     defaultValues: {
@@ -139,20 +131,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       url: "",
       tags: [],
     });
-
-    const promise = clearScrapingResult();
-
-    toast.promise(promise, {
-      loading: "Resetting...",
-      success: "Reset successful",
-      error: "Failed to reset",
-    });
-
-    await promise;
-
-    clearHistory();
-
-    refetchScrapingResult();
   };
 
   return (
@@ -395,33 +373,34 @@ const Sidebar: React.FC<SidebarProps> = ({
               className="flex-1 transition-all duration-300"
               onClick={handleReset}
             >
-              {isClearing ? "Resetting..." : "Reset Results"}
+              Reset
             </Button>
           </div>
 
-          {results && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Scraping Summary</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <SummaryItem
-                  label="Input Tokens"
-                  value={results.inputTokens.toString()}
-                />
-                <SummaryItem
-                  label="Output Tokens"
-                  value={results.outputTokens.toString()}
-                />
-                <SummaryItem
-                  label="Total Cost"
-                  value={`$${results.totalCost.toFixed(4)}`}
-                />
-              </CardContent>
-            </Card>
-          )}
+          {results &&
+            results.map((r, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Scraping Summary</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <SummaryItem
+                    label="Input Tokens"
+                    value={r.inputTokens.toString()}
+                  />
+                  <SummaryItem
+                    label="Output Tokens"
+                    value={r.outputTokens.toString()}
+                  />
+                  <SummaryItem
+                    label="Total Cost"
+                    value={`$${r.totalCost.toFixed(4)}`}
+                  />
+                </CardContent>
+              </Card>
+            ))}
         </form>
       </Form>
 
