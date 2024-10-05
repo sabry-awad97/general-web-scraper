@@ -1,5 +1,3 @@
-import { IncomingMessageSchema, ScrapedItemsSchema } from "@/schemas";
-import { MessageType, ScrapedItems } from "@/types";
 import JSON5 from "json5";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -12,11 +10,8 @@ interface EventSourceOptions {
 export function useEventSource(url: string, options: EventSourceOptions = {}) {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [receivedJsonData, setReceivedJsonData] = useState<ScrapedItems>([]);
   const [lastEventId, setLastEventId] = useState<string | null>(null);
-  const [messageHistory, setMessageHistory] = useState<
-    Array<{ type: MessageType; payload: string }>
-  >([]);
+  const [messageHistory, setMessageHistory] = useState<string[]>([]);
 
   const reconnectAttemptsRef = useRef(0);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -29,37 +24,8 @@ export function useEventSource(url: string, options: EventSourceOptions = {}) {
 
   const handleIncomingMessage = useCallback((event: MessageEvent<string>) => {
     try {
-      const parsedMessage = IncomingMessageSchema.parse(
-        JSON5.parse(event.data),
-      );
-
-      console.log("Received message:", parsedMessage.type);
-
-      switch (parsedMessage.type) {
-        case "success": {
-          const jsonPayload = ScrapedItemsSchema.parse(
-            JSON5.parse(parsedMessage.payload),
-          );
-          setReceivedJsonData(jsonPayload);
-          break;
-        }
-        case "progress": {
-          console.log("Received progress:", parsedMessage.payload);
-          break;
-        }
-        case "error": {
-          console.error("Received error:", parsedMessage.payload);
-          break;
-        }
-        case "warning": {
-          console.warn("Received warning:", parsedMessage.payload);
-          break;
-        }
-        case "raw": {
-          console.log("Received raw:", parsedMessage.payload);
-          break;
-        }
-      }
+      setMessageHistory((prev) => [...prev, event.data]);
+      console.log("Received message:", event.data);
     } catch (error) {
       console.error("Error parsing or validating message:", error);
     }
@@ -111,25 +77,11 @@ export function useEventSource(url: string, options: EventSourceOptions = {}) {
     };
   }, [initializeConnection]);
 
-  const sendMessage = useCallback((message: string) => {
-    if (
-      eventSourceRef.current &&
-      eventSourceRef.current.readyState === EventSource.OPEN
-    ) {
-      // In a real implementation, you'd need server support for this
-      console.log("Sending message:", message);
-    } else {
-      console.error("Connection not open. Unable to send message.");
-    }
-  }, []);
-
   return {
     connectionError,
     isConnected,
-    receivedJsonData,
     lastEventId,
     messageHistory,
-    sendMessage,
     reconnect: () => {
       eventSourceRef.current?.close();
       reconnect();

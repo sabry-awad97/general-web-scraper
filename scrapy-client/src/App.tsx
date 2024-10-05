@@ -11,10 +11,13 @@ import Sidebar from "./components/sidebar";
 import { ThemeToggle } from "./components/theme-toggle";
 import WelcomeCard from "./components/welcome-card";
 import { useCrawl } from "./hooks/useCrawl";
+import { useEventSource } from "./hooks/useEventSource";
 import { useModels } from "./hooks/useModels";
 import { ScrapeSchema, ScrapingResult } from "./types";
 
 function App() {
+  useEventSource("/api/events");
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { data: models = [] } = useModels();
   const {
@@ -25,9 +28,9 @@ function App() {
     error: crawlError,
   } = useCrawl();
 
-  const [scrapingResults, setScrapingResults] = useState<ScrapingResult[] | null>(
-    null,
-  );
+  const [scrapingResults, setScrapingResults] = useState<
+    ScrapingResult[] | null
+  >(null);
 
   const onSubmit = async (values: ScrapeSchema) => {
     try {
@@ -80,7 +83,6 @@ function App() {
           <Tabs defaultValue="results" className="w-full">
             <TabsList>
               <TabsTrigger value="results">Results</TabsTrigger>
-              <TabsTrigger value="messages">Messages</TabsTrigger>
             </TabsList>
             <TabsContent value="results">
               {isSuccess && scrapingResults ? (
